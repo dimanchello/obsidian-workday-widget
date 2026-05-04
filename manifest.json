@@ -1,0 +1,9 @@
+{
+  "id": "workday-widget",
+  "name": "Workday Widget",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Таймеры и прогресс рабочего дня в боковой панели",
+  "author": "you",
+  "isDesktopOnly": false
+}
