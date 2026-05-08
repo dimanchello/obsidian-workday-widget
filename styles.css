@@ -229,23 +229,26 @@
 .workday-widget .wd-status-row {
     display: flex;
     gap: 8px;
-    align-items: center;
+    align-items: stretch;
 }
 
 .workday-widget .wd-status {
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
-    padding: 5px;
+    padding: 6px 10px;
     border-radius: 6px;
     background: var(--background-secondary);
     color: var(--text-muted);
 }
 
 .workday-widget .wd-delete-btn {
-    padding: 4px 8px;
-    border-radius: 5px;
+    padding: 0 10px;
+    border-radius: 6px;
     background: var(--background-modifier-error);
     color: var(--text-on-accent);
     border: none;
