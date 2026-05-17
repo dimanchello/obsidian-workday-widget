@@ -1,12 +1,12 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import { EMOJIS }                from '../constants';
-import { TimerConfig }           from '../types';
-import { uid }                   from '../utils';
-import { DEFAULT_TIMER }         from '../constants';
-import { ConfirmModal }          from '../modals/ConfirmModal';
-import { renderRangeFields }     from './fields/RangeFields';
+import { EMOJIS } from '../constants';
+import { TimerConfig } from '../types';
+import { uid } from '../utils';
+import { DEFAULT_TIMER } from '../constants';
+import { ConfirmModal } from '../modals/ConfirmModal';
+import { renderRangeFields } from './fields/RangeFields';
 import { renderCountdownFields } from './fields/CountdownFields';
-import WorkdayPlugin             from '../main';
+import WorkdayPlugin from '../main';
 
 export class WorkdaySettingTab extends PluginSettingTab {
     private plugin: WorkdayPlugin;
@@ -28,14 +28,15 @@ export class WorkdaySettingTab extends PluginSettingTab {
         });
 
         const addBtn = containerEl.createEl('button', {
-            cls: 'wd-add-btn', text: '+ Добавить таймер',
+            cls: 'wd-add-btn',
+            text: '+ Добавить таймер',
         });
         addBtn.addEventListener('click', async () => {
             this.plugin.settings.timers.push({
                 ...DEFAULT_TIMER,
-                id:    uid(),
+                id: uid(),
                 emoji: '⏱️',
-                name:  '',
+                name: '',
             });
             await this.plugin.saveSettings();
             this.plugin.refreshView();
@@ -44,7 +45,7 @@ export class WorkdaySettingTab extends PluginSettingTab {
     }
 
     private renderTimerCard(card: HTMLElement, timer: TimerConfig, idx: number): void {
-        const hdr     = card.createDiv({ cls: 'wd-settings-timer-header' });
+        const hdr = card.createDiv({ cls: 'wd-settings-timer-header' });
         const titleEl = hdr.createDiv({ cls: 'wd-settings-timer-title' });
         titleEl.textContent = `${timer.emoji} ${timer.name || `Таймер ${idx + 1}`}`;
 
@@ -59,7 +60,7 @@ export class WorkdaySettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                         this.plugin.refreshView();
                         this.display();
-                    }
+                    },
                 ).open();
             });
         }
@@ -68,15 +69,16 @@ export class WorkdaySettingTab extends PluginSettingTab {
         new Setting(card)
             .setName('Название')
             .setDesc('Отображается при наведении на вкладку и в уведомлении')
-            .addText(t => t
-                .setPlaceholder('Мой таймер')
-                .setValue(timer.name || '')
-                .onChange(async (v) => {
-                    timer.name = v.trim();
-                    titleEl.textContent = `${timer.emoji} ${timer.name || `Таймер ${idx + 1}`}`;
-                    await this.plugin.saveSettings();
-                    this.plugin.refreshView();
-                })
+            .addText((t) =>
+                t
+                    .setPlaceholder('Мой таймер')
+                    .setValue(timer.name || '')
+                    .onChange(async (v) => {
+                        timer.name = v.trim();
+                        titleEl.textContent = `${timer.emoji} ${timer.name || `Таймер ${idx + 1}`}`;
+                        await this.plugin.saveSettings();
+                        this.plugin.refreshView();
+                    }),
             );
 
         // Эмодзи
@@ -85,12 +87,12 @@ export class WorkdaySettingTab extends PluginSettingTab {
             attr: { style: 'font-size:12px;color:var(--text-muted);margin:8px 0 4px;' },
         });
         const emojiGrid = card.createDiv({ cls: 'wd-emoji-grid' });
-        EMOJIS.forEach(em => {
+        EMOJIS.forEach((em) => {
             const btn = emojiGrid.createEl('button', { cls: 'wd-emoji-btn', text: em });
             if (em === timer.emoji) btn.addClass('active');
             btn.addEventListener('click', async () => {
                 timer.emoji = em;
-                emojiGrid.querySelectorAll('.wd-emoji-btn').forEach(b => b.removeClass('active'));
+                emojiGrid.querySelectorAll('.wd-emoji-btn').forEach((b) => b.removeClass('active'));
                 btn.addClass('active');
                 titleEl.textContent = `${em} ${timer.name || `Таймер ${idx + 1}`}`;
                 await this.plugin.saveSettings();
@@ -99,10 +101,9 @@ export class WorkdaySettingTab extends PluginSettingTab {
         });
 
         // Тип
-        new Setting(card)
-            .setName('Тип таймера')
-            .addDropdown(dd => dd
-                .addOption('range',     '⏱ Диапазонный (ежедневно, от времени до времени)')
+        new Setting(card).setName('Тип таймера').addDropdown((dd) =>
+            dd
+                .addOption('range', '⏱ Диапазонный (ежедневно, от времени до времени)')
                 .addOption('countdown', '📅 Обратный отсчёт (до конкретной даты)')
                 .setValue(timer.type || 'range')
                 .onChange(async (v) => {
@@ -110,31 +111,27 @@ export class WorkdaySettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                     this.plugin.refreshView();
                     this.display();
-                })
-            );
+                }),
+        );
 
         // Цвет
-        new Setting(card)
-            .setName('Цвет прогресс-бара')
-            .addColorPicker(cp => cp
-                .setValue(timer.color || '#7c6af7')
-                .onChange(async (v) => {
-                    timer.color = v;
-                    await this.plugin.saveSettings();
-                    this.plugin.refreshView();
-                })
-            );
+        new Setting(card).setName('Цвет прогресс-бара').addColorPicker((cp) =>
+            cp.setValue(timer.color || '#7c6af7').onChange(async (v) => {
+                timer.color = v;
+                await this.plugin.saveSettings();
+                this.plugin.refreshView();
+            }),
+        );
 
         // Уведомление
         new Setting(card)
             .setName('Уведомление при завершении')
             .setDesc('Системное уведомление когда таймер закончится')
-            .addToggle(toggle => toggle
-                .setValue(timer.notify ?? false)
-                .onChange(async (v) => {
+            .addToggle((toggle) =>
+                toggle.setValue(timer.notify ?? false).onChange(async (v) => {
                     timer.notify = v;
                     await this.plugin.saveSettings();
-                })
+                }),
             );
 
         // Поля в зависимости от типа

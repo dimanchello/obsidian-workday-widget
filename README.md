@@ -161,6 +161,28 @@ npm run dev
 npm run build
 ```
 
+### Линтинг и тесты
+
+```bash
+# Проверка типов TypeScript
+npm run typecheck
+
+# Проверка линтером
+npm run lint
+
+# Автоисправление линтера
+npm run lint:fix
+
+# Форматирование кода
+npm run format
+
+# Запуск unit тестов
+npm run test
+
+# Полная валидация (typecheck + lint + format + test)
+npm run validate
+```
+
 ## Структура проекта
 
 ```
@@ -169,7 +191,8 @@ obsidian-workday-widget/
 │   ├── main.ts                       # Точка входа, класс плагина
 │   ├── types.ts                      # TypeScript типы и интерфейсы
 │   ├── constants.ts                  # Константы и значения по умолчанию
-│   ├── utils.ts                      # Вспомогательные функции
+│   ├── utils.ts                      # Вспомогательные функции (покрыты тестами)
+│   ├── utils.test.ts                 # Unit тесты для utils.ts
 │   ├── notifications.ts              # Системные уведомления
 │   ├── modals/
 │   │   └── ConfirmModal.ts           # Модалка подтверждения удаления
@@ -180,12 +203,19 @@ obsidian-workday-widget/
 │       └── fields/
 │           ├── RangeFields.ts        # Поля для диапазонного таймера
 │           └── CountdownFields.ts    # Поля для обратного отсчёта
-├── main.js                           # Собранный файл (генерируется)
-├── manifest.json                     # Манифест плагина
-├── styles.css                        # Стили виджета
+├── dist/                             # Собранный плагин (игнорируется в git)
+│   ├── main.js                       # Собранный файл (генерируется)
+│   ├── manifest.json                 # Манифест плагина (копируется)
+│   └── styles.css                    # Стили виджета (копируются)
+├── manifest.json                     # Манифест плагина (исходник)
+├── styles.css                        # Стили виджета (исходник)
 ├── esbuild.config.mjs                # Конфигурация сборки
 ├── tsconfig.json                     # Конфигурация TypeScript
-└── package.json
+├── vitest.config.ts                  # Конфигурация Vitest
+├── eslint.config.js                  # Конфигурация ESLint
+├── .prettierrc                       # Конфигурация Prettier
+├── package.json
+└── AGENTS.md                         # Инструкция для AI ассистентов
 ```
 
 ## 📄 Лицензия

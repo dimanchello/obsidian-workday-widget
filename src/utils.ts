@@ -3,32 +3,34 @@ export function uid(): string {
 }
 
 export function toMin(t: string): number {
-    const [h, m] = (t || '00:00').split(':').map(Number);
+    const parts = (t || '00:00').split(':').map(Number);
+    const h = parts[0] || 0;
+    const m = parts[1] || 0;
     return h * 60 + m;
 }
 
 export function fromMin(m: number): string {
-    m = Math.max(0, m);
-    return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(Math.round(m) % 60).padStart(2, '0')}`;
+    m = Math.max(0, Math.round(m));
+    return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
 export function durStr(totalSec: number): string {
-    totalSec    = Math.max(0, Math.round(totalSec));
-    const d     = Math.floor(totalSec / 86400);
-    const h     = Math.floor((totalSec % 86400) / 3600);
-    const m     = Math.floor((totalSec % 3600) / 60);
-    const s     = totalSec % 60;
-    if (d > 0)  return `${d}д ${h}ч ${m}м`;
-    if (h > 0)  return `${h}ч ${m}м`;
-    if (m > 0)  return `${m}м ${s}с`;
+    totalSec = Math.max(0, Math.round(totalSec));
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (d > 0) return `${d}д ${h}ч ${m}м`;
+    if (h > 0) return `${h}ч ${m}м`;
+    if (m > 0) return `${m}м ${s}с`;
     return `${s}с`;
 }
 
 export function durStrShort(min: number): string {
-    min       = Math.max(0, Math.round(min));
-    const h   = Math.floor(min / 60);
-    const mm  = min % 60;
-    if (h === 0)  return `${mm}м`;
+    min = Math.max(0, Math.round(min));
+    const h = Math.floor(min / 60);
+    const mm = min % 60;
+    if (h === 0) return `${mm}м`;
     if (mm === 0) return `${h}ч`;
     return `${h}ч ${mm}м`;
 }
@@ -52,4 +54,8 @@ export function inputStyle(): string {
         'color-scheme:dark',
         'width:150px',
     ].join(';');
+}
+
+export function isValidDate(d: Date): boolean {
+    return d instanceof Date && !isNaN(d.getTime());
 }

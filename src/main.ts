@@ -1,8 +1,8 @@
-import { Plugin }            from 'obsidian';
+import { Plugin } from 'obsidian';
 import { VIEW_TYPE, DEFAULT_SETTINGS } from './constants';
-import { PluginSettings }    from './types';
-import { fromMin, toMin }    from './utils';
-import { WorkdayView }       from './views/WorkdayView';
+import { PluginSettings } from './types';
+import { fromMin, toMin } from './utils';
+import { WorkdayView } from './views/WorkdayView';
 import { WorkdaySettingTab } from './settings/SettingsTab';
 
 export default class WorkdayPlugin extends Plugin {
@@ -11,10 +11,7 @@ export default class WorkdayPlugin extends Plugin {
     async onload(): Promise<void> {
         await this.loadSettings();
 
-        this.registerView(
-            VIEW_TYPE,
-            leaf => new WorkdayView(leaf, this),
-        );
+        this.registerView(VIEW_TYPE, (leaf) => new WorkdayView(leaf, this));
 
         this.addSettingTab(new WorkdaySettingTab(this.app, this));
 
@@ -41,7 +38,7 @@ export default class WorkdayPlugin extends Plugin {
     }
 
     refreshView(): void {
-        this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => {
+        this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((leaf) => {
             if (leaf.view instanceof WorkdayView) {
                 leaf.view.refresh();
             }
@@ -57,13 +54,14 @@ export default class WorkdayPlugin extends Plugin {
         }
 
         // Миграция: workday → range
-        this.settings.timers.forEach(t => {
+        this.settings.timers.forEach((t) => {
             if ((t.type as string) === 'workday') {
-                t.type    = 'range';
+                const legacy = t as unknown as Record<string, unknown>;
+                t.type = 'range';
                 t.endTime = fromMin(
                     toMin(t.startTime) +
-                    ((t as any).workHours  || 8)  * 60 +
-                    ((t as any).lunchMin   || 0),
+                        ((legacy.workHours as number) || 8) * 60 +
+                        ((legacy.lunchMin as number) || 0),
                 );
             }
         });

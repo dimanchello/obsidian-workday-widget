@@ -1,12 +1,12 @@
 import { App, Modal } from 'obsidian';
 
 export class ConfirmModal extends Modal {
-    private message:   string;
+    private message: string;
     private onConfirm: () => void;
 
     constructor(app: App, message: string, onConfirm: () => void) {
         super(app);
-        this.message   = message;
+        this.message = message;
         this.onConfirm = onConfirm;
     }
 
