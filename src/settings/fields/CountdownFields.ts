@@ -1,70 +1,51 @@
-import { Setting } from 'obsidian';
 import { TimerConfig } from '../../types';
-import { inputStyle, todayStr } from '../../utils';
+import { todayStr } from '../../utils';
+import { t } from '../../i18n';
 
 export function renderCountdownFields(
     card: HTMLElement,
     timer: TimerConfig,
     onSave: () => Promise<void>,
 ): void {
-    const isNew = !timer.startDate?.trim() && !timer.targetDate?.trim();
+    const isNew = !timer.startDatetime && !timer.targetDatetime;
     if (isNew) {
-        timer.startDate = todayStr();
+        timer.startDatetime = `${todayStr()}T09:00`;
         void onSave();
     }
 
-    const makeDatePicker = (
-        name: string,
-        desc: string,
-        value: string,
-        onChange: (v: string) => void,
-    ) => {
-        new Setting(card)
-            .setName(name)
-            .setDesc(desc)
-            .addText((t) => {
-                t.inputEl.type = 'date';
-                t.inputEl.value = value;
-                t.inputEl.style.cssText = inputStyle();
-                t.inputEl.addEventListener('change', async (e) => {
-                    onChange((e.target as HTMLInputElement).value);
-                    await onSave();
-                });
-                return t;
-            });
-    };
+    const row = card.createDiv({ cls: 'wd-form-row-2' });
 
-    const makeTimePicker = (name: string, value: string, onChange: (v: string) => void) => {
-        new Setting(card).setName(name).addText((t) => {
-            t.inputEl.type = 'time';
-            t.inputEl.value = value;
-            t.inputEl.style.cssText = inputStyle();
-            t.inputEl.addEventListener('change', async (e) => {
-                onChange((e.target as HTMLInputElement).value);
-                await onSave();
-            });
-            return t;
-        });
-    };
-
-    makeDatePicker(
-        'Дата начала',
-        'Необязательно. Если не указана — только осталось, без прогресса',
-        timer.startDate || '',
-        (v) => {
-            timer.startDate = v;
-        },
-    );
-
-    makeTimePicker('Время начала', timer.startTimeC || '09:00', (v) => {
-        timer.startTimeC = v;
+    // Start group
+    const startGroup = row.createDiv({ cls: 'wd-form-field' });
+    startGroup.createEl('label', {
+        cls: 'wd-form-label',
+        text: t('startGroup'),
+        attr: { title: t('startGroupHint') },
+    });
+    const startInput = startGroup.createEl('input', {
+        cls: 'wd-form-datetime',
+        attr: { type: 'datetime-local' },
+    });
+    startInput.value = timer.startDatetime;
+    startInput.addEventListener('change', async () => {
+        timer.startDatetime = startInput.value;
+        await onSave();
     });
 
-    makeDatePicker('Дата цели', '', timer.targetDate || '', (v) => {
-        timer.targetDate = v;
+    // Target group
+    const targetGroup = row.createDiv({ cls: 'wd-form-field' });
+    targetGroup.createEl('label', {
+        cls: 'wd-form-label',
+        text: t('targetGroup'),
+        attr: { title: t('targetGroupHint') },
     });
-
-    makeTimePicker('Время цели', timer.targetTime || '18:00', (v) => {
-        timer.targetTime = v;
+    const targetInput = targetGroup.createEl('input', {
+        cls: 'wd-form-datetime',
+        attr: { type: 'datetime-local' },
+    });
+    targetInput.value = timer.targetDatetime;
+    targetInput.addEventListener('change', async () => {
+        timer.targetDatetime = targetInput.value;
+        await onSave();
     });
 }

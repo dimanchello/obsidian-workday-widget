@@ -1,30 +1,34 @@
-import { Setting } from 'obsidian';
 import { TimerConfig } from '../../types';
-import { inputStyle } from '../../utils';
+import { t } from '../../i18n';
 
 export function renderRangeFields(
     card: HTMLElement,
     timer: TimerConfig,
     onSave: () => Promise<void>,
 ): void {
-    const makeTimePicker = (name: string, value: string, onChange: (v: string) => void) => {
-        new Setting(card).setName(name).addText((t) => {
-            t.inputEl.type = 'time';
-            t.inputEl.value = value;
-            t.inputEl.style.cssText = inputStyle();
-            t.inputEl.addEventListener('change', async (e) => {
-                onChange((e.target as HTMLInputElement).value);
-                await onSave();
-            });
-            return t;
-        });
-    };
+    const row = card.createDiv({ cls: 'wd-form-row-2' });
 
-    makeTimePicker('Время начала', timer.startTime || '09:00', (v) => {
-        timer.startTime = v;
+    const startField = row.createDiv({ cls: 'wd-form-field' });
+    startField.createEl('label', { cls: 'wd-form-label', text: t('start') });
+    const startInput = startField.createEl('input', {
+        cls: 'wd-form-time',
+        attr: { type: 'time' },
+    });
+    startInput.value = timer.startTime || '09:00';
+    startInput.addEventListener('change', async () => {
+        timer.startTime = startInput.value;
+        await onSave();
     });
 
-    makeTimePicker('Время окончания', timer.endTime || '18:00', (v) => {
-        timer.endTime = v;
+    const endField = row.createDiv({ cls: 'wd-form-field' });
+    endField.createEl('label', { cls: 'wd-form-label', text: t('end') });
+    const endInput = endField.createEl('input', {
+        cls: 'wd-form-time',
+        attr: { type: 'time' },
+    });
+    endInput.value = timer.endTime || '18:00';
+    endInput.addEventListener('change', async () => {
+        timer.endTime = endInput.value;
+        await onSave();
     });
 }

@@ -12,10 +12,8 @@ export interface TimerConfig {
     startTime: string;
     endTime: string;
     // countdown
-    targetDate: string;
-    targetTime: string;
-    startDate: string;
-    startTimeC: string;
+    targetDatetime: string; // YYYY-MM-DDTHH:mm (datetime-local)
+    startDatetime: string; // YYYY-MM-DDTHH:mm (datetime-local)
 }
 
 export interface PluginSettings {

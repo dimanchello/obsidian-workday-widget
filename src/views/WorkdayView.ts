@@ -5,6 +5,7 @@ import { toMin, fromMin, durStr, durStrShort, isValidDate } from '../utils';
 import { sendNotification } from '../notifications';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import WorkdayPlugin from '../main';
+import { t } from '../i18n';
 
 export class WorkdayView extends ItemView {
     private plugin: WorkdayPlugin;
@@ -23,7 +24,7 @@ export class WorkdayView extends ItemView {
         return VIEW_TYPE;
     }
     getDisplayText(): string {
-        return 'Таймеры';
+        return 'Workday Widget';
     }
     getIcon(): string {
         return 'timer';
@@ -36,14 +37,10 @@ export class WorkdayView extends ItemView {
         this.stopTick();
     }
 
-    // ── Публичный метод для Settings ──────────────────────────────────────────
-
     refresh(): void {
         this.stopTick();
         this.buildUI();
     }
-
-    // ── Сборка всего UI ───────────────────────────────────────────────────────
 
     private buildUI(): void {
         const root = this.containerEl.children[1] as HTMLElement;
@@ -54,13 +51,12 @@ export class WorkdayView extends ItemView {
 
         if (!timers || timers.length === 0) {
             root.createEl('p', {
-                text: 'Нет таймеров. Добавь в Settings → Workday Widget.',
+                text: t('noTimers'),
                 attr: { style: 'color:var(--text-muted);font-size:13px;' },
             });
             return;
         }
 
-        // Восстанавливаем сохранённый activeIndex
         this.activeIndex = this.plugin.settings.activeIndex ?? 0;
         if (this.activeIndex >= timers.length) this.activeIndex = 0;
 
@@ -73,8 +69,6 @@ export class WorkdayView extends ItemView {
         this.startTick();
     }
 
-    // ── Пересборка без сброса интервала (после drag & drop) ──────────────────
-
     rebuild(): void {
         const { timers } = this.plugin.settings;
         if (this.activeIndex >= timers.length) this.activeIndex = 0;
@@ -83,8 +77,6 @@ export class WorkdayView extends ItemView {
         this.buildPanels(timers);
         this.tick();
     }
-
-    // ── Вкладки ───────────────────────────────────────────────────────────────
 
     private buildTabs(timers: TimerConfig[]): void {
         this.tabsEl.empty();
@@ -109,10 +101,8 @@ export class WorkdayView extends ItemView {
                 setTimeout(() => tab.scrollIntoView({ block: 'nearest', inline: 'center' }), 50);
             }
 
-            // Клик
             tab.addEventListener('click', () => this.switchTab(i));
 
-            // Drag
             tab.addEventListener('dragstart', (e) => {
                 dragSrcIdx = i;
                 e.dataTransfer!.effectAllowed = 'move';
@@ -158,14 +148,21 @@ export class WorkdayView extends ItemView {
         });
     }
 
-    private makeTabTitle(t: TimerConfig): string {
-        const name = t.name?.trim() || null;
-        if (t.type === 'range') {
-            return name
-                ? `${name} (${t.startTime} – ${t.endTime})`
-                : `Диапазон (${t.startTime} – ${t.endTime})`;
+    private makeTabTitle(timer: TimerConfig): string {
+        const name = timer.name?.trim() || null;
+        if (timer.type === 'range') {
+            if (name) {
+                return t('tabTitleRange', { name, start: timer.startTime, end: timer.endTime });
+            }
+            return t('tabTitleRangeNoName', { start: timer.startTime, end: timer.endTime });
         }
-        return name ? `${name} → ${t.targetDate || '?'}` : `До ${t.targetDate || '?'}`;
+        if (name) {
+            return t('tabTitleCountdown', {
+                name,
+                date: timer.targetDatetime?.slice(0, 10) || '?',
+            });
+        }
+        return t('tabTitleCountdownNoName', { date: timer.targetDatetime?.slice(0, 10) || '?' });
     }
 
     private switchTab(i: number): void {
@@ -199,8 +196,6 @@ export class WorkdayView extends ItemView {
         }
     }
 
-    // ── Панели ────────────────────────────────────────────────────────────────
-
     private buildPanels(timers: TimerConfig[]): void {
         this.panelsEl.empty();
         this.panels = {};
@@ -215,47 +210,42 @@ export class WorkdayView extends ItemView {
     }
 
     private buildPanel(wrap: HTMLElement, timer: TimerConfig): PanelElements {
-        // Header
         const hdr = wrap.createDiv({ cls: 'wd-header' });
         const titleEl = hdr.createDiv({ cls: 'wd-title' });
         titleEl.textContent = this.makePanelTitle(timer);
         const clockEl = hdr.createDiv({ cls: 'wd-clock' });
 
-        // Bar labels
         const lbl = wrap.createDiv({ cls: 'wd-bar-labels' });
         const lblStart = lbl.createSpan();
         const lblPct = lbl.createSpan();
         const lblEnd = lbl.createSpan();
 
-        // Bar
         const track = wrap.createDiv({ cls: 'wd-bar-track' });
         const barEl = track.createDiv({ cls: 'wd-bar-fill' });
         barEl.style.background = timer.color || '#7c6af7';
 
-        // Stats
         let passedEl: HTMLElement;
         let leftEl: HTMLElement;
         let endEl: HTMLElement | undefined;
 
         if (timer.type === 'range') {
             const stats = wrap.createDiv({ cls: 'wd-stats' });
-            passedEl = this.mkStat(stats, 'Прошло', '#a6e3a1');
-            leftEl = this.mkStat(stats, 'Осталось', '#f38ba8');
-            endEl = this.mkStat(stats, 'Конец', '#89b4fa');
+            passedEl = this.mkStat(stats, t('statPassed'), '#a6e3a1');
+            leftEl = this.mkStat(stats, t('statLeft'), '#f38ba8');
+            endEl = this.mkStat(stats, t('statEnd'), '#89b4fa');
         } else {
             const stats = wrap.createDiv({ cls: 'wd-stats wd-stats-2col' });
-            passedEl = this.mkStat(stats, 'Прошло', '#a6e3a1');
-            leftEl = this.mkStat(stats, 'Осталось', '#f38ba8');
+            passedEl = this.mkStat(stats, t('statPassed'), '#a6e3a1');
+            leftEl = this.mkStat(stats, t('statLeft'), '#f38ba8');
         }
 
-        // Status row
         const statusRow = wrap.createDiv({ cls: 'wd-status-row' });
         const statusEl = statusRow.createDiv({ cls: 'wd-status' });
 
         let deleteBtn: HTMLElement | undefined;
         if (timer.type === 'countdown') {
             deleteBtn = statusRow.createEl('button', { cls: 'wd-delete-btn', text: '🗑️' });
-            deleteBtn.title = 'Удалить таймер';
+            deleteBtn.title = t('deleteTimer');
             deleteBtn.style.display = 'none';
             deleteBtn.addEventListener('click', () => this.confirmDelete(timer));
         }
@@ -278,8 +268,8 @@ export class WorkdayView extends ItemView {
     private makePanelTitle(timer: TimerConfig): string {
         if (timer.name) return `${timer.emoji} ${timer.name}`;
         return timer.type === 'range'
-            ? `${timer.emoji} Диапазонный таймер`
-            : `${timer.emoji} Обратный отсчёт`;
+            ? `${timer.emoji} ${t('timerRangeDefault')}`
+            : `${timer.emoji} ${t('timerCountdownDefault')}`;
     }
 
     private mkStat(parent: HTMLElement, label: string, color: string): HTMLElement {
@@ -293,7 +283,7 @@ export class WorkdayView extends ItemView {
     private confirmDelete(timer: TimerConfig): void {
         new ConfirmModal(
             this.plugin.app,
-            `Удалить таймер "${timer.name || timer.emoji}"?`,
+            t('confirmDelete', { name: timer.name || timer.emoji }),
             async () => {
                 const idx = this.plugin.settings.timers.findIndex((t) => t.id === timer.id);
                 if (idx === -1) return;
@@ -307,8 +297,6 @@ export class WorkdayView extends ItemView {
             },
         ).open();
     }
-
-    // ── Tick ──────────────────────────────────────────────────────────────────
 
     private startTick(): void {
         this.tick();
@@ -327,7 +315,7 @@ export class WorkdayView extends ItemView {
         if (!timers) return;
 
         const now = new Date();
-        const nowStr = now.toLocaleTimeString('ru-RU', {
+        const nowStr = now.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
@@ -360,7 +348,7 @@ export class WorkdayView extends ItemView {
         if (totalM <= 0) {
             this.setStatus(
                 els,
-                '⚠️ Укажи корректный диапазон',
+                t('statusNoRange'),
                 'var(--text-muted)',
                 'var(--background-secondary)',
             );
@@ -376,14 +364,14 @@ export class WorkdayView extends ItemView {
             leftM = totalM;
             this.setStatus(
                 els,
-                '⏳ Ещё не началось',
+                t('statusBefore'),
                 'var(--text-muted)',
                 'var(--background-secondary)',
             );
         } else if (nowMin >= endM) {
             pct = 100;
             passedM = totalM;
-            this.setStatus(els, '🎉 Завершено!', '#a6e3a1', '#1e3a2f');
+            this.setStatus(els, t('statusDone'), '#a6e3a1', '#1e3a2f');
             if (timer.notify && !timer.notified) {
                 timer.notified = true;
                 void this.plugin.saveSettings();
@@ -394,7 +382,7 @@ export class WorkdayView extends ItemView {
             pct = Math.min((elapsed / totalM) * 100, 100);
             passedM = elapsed;
             leftM = Math.max(0, totalM - elapsed);
-            this.setStatus(els, '▶ Идёт', '#89b4fa', '#1e2a3a');
+            this.setStatus(els, t('statusRunning'), '#89b4fa', '#1e2a3a');
         }
 
         els.barEl.style.width = `${pct.toFixed(2)}%`;
@@ -404,10 +392,10 @@ export class WorkdayView extends ItemView {
     }
 
     private tickCountdown(timer: TimerConfig, now: Date, els: PanelElements): void {
-        if (!timer.targetDate?.trim()) {
+        if (!timer.targetDatetime) {
             this.setStatus(
                 els,
-                '⚠️ Укажи дату цели',
+                t('statusNoTarget'),
                 'var(--text-muted)',
                 'var(--background-secondary)',
             );
@@ -415,11 +403,11 @@ export class WorkdayView extends ItemView {
             return;
         }
 
-        const target = new Date(`${timer.targetDate}T${timer.targetTime || '00:00'}:00`);
+        const target = new Date(timer.targetDatetime + ':00');
         if (!isValidDate(target)) {
             this.setStatus(
                 els,
-                '⚠️ Некорректная дата цели',
+                t('statusBadTarget'),
                 'var(--text-muted)',
                 'var(--background-secondary)',
             );
@@ -427,15 +415,13 @@ export class WorkdayView extends ItemView {
             return;
         }
 
-        const hasStart = !!timer.startDate?.trim();
-        const start = hasStart
-            ? new Date(`${timer.startDate}T${timer.startTimeC || '00:00'}:00`)
-            : null;
+        const hasStart = !!timer.startDatetime;
+        const start = hasStart ? new Date(timer.startDatetime + ':00') : null;
 
         if (start && !isValidDate(start)) {
             this.setStatus(
                 els,
-                '⚠️ Некорректная дата начала',
+                t('statusBadStart'),
                 'var(--text-muted)',
                 'var(--background-secondary)',
             );
@@ -454,7 +440,7 @@ export class WorkdayView extends ItemView {
                   : 0;
 
         const fmt = (d: Date) =>
-            d.toLocaleDateString('ru-RU', {
+            d.toLocaleDateString([], {
                 day: '2-digit',
                 month: '2-digit',
                 year: '2-digit',
@@ -471,7 +457,7 @@ export class WorkdayView extends ItemView {
             els.passedEl.textContent = totalSec ? durStr(totalSec) : '—';
             els.leftEl.textContent = '0с';
             if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
-            this.setStatus(els, '🎉 Достигнуто!', '#a6e3a1', '#1e3a2f');
+            this.setStatus(els, t('statusReached'), '#a6e3a1', '#1e3a2f');
             if (timer.notify && !timer.notified) {
                 timer.notified = true;
                 void this.plugin.saveSettings();
@@ -482,7 +468,7 @@ export class WorkdayView extends ItemView {
             if (els.deleteBtn) els.deleteBtn.style.display = 'none';
             els.passedEl.textContent = passedSec !== null ? durStr(passedSec) : '—';
             els.leftEl.textContent = durStr(leftSec);
-            this.setStatus(els, '⏳ Идёт отсчёт', '#89b4fa', '#1e2a3a');
+            this.setStatus(els, t('statusCountdown'), '#89b4fa', '#1e2a3a');
         }
     }
 

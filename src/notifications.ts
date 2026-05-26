@@ -1,9 +1,12 @@
 import { TimerConfig } from './types';
+import { t } from './i18n';
 
 export function sendNotification(timer: TimerConfig): void {
-    const name = timer.name?.trim() || `${timer.emoji} Таймер`;
-    const title = '⏱️ Workday Widget';
-    const body = `Таймер "${name}" завершился!`;
+    const name = timer.name?.trim();
+    const title = t('notificationTitle');
+    const body = name
+        ? t('notificationBody', { name })
+        : t('notificationBodyNoName', { emoji: timer.emoji });
 
     if (typeof window === 'undefined' || !('Notification' in window)) return;
 

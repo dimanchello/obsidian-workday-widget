@@ -1,12 +1,12 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
-import { EMOJIS } from '../constants';
+import { App, PluginSettingTab } from 'obsidian';
+import { EMOJIS, DEFAULT_TIMER } from '../constants';
 import { TimerConfig } from '../types';
 import { uid } from '../utils';
-import { DEFAULT_TIMER } from '../constants';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { renderRangeFields } from './fields/RangeFields';
 import { renderCountdownFields } from './fields/CountdownFields';
 import WorkdayPlugin from '../main';
+import { t } from '../i18n';
 
 export class WorkdaySettingTab extends PluginSettingTab {
     private plugin: WorkdayPlugin;
@@ -29,7 +29,7 @@ export class WorkdaySettingTab extends PluginSettingTab {
 
         const addBtn = containerEl.createEl('button', {
             cls: 'wd-add-btn',
-            text: '+ Добавить таймер',
+            text: t('addTimer'),
         });
         addBtn.addEventListener('click', async () => {
             this.plugin.settings.timers.push({
@@ -45,16 +45,104 @@ export class WorkdaySettingTab extends PluginSettingTab {
     }
 
     private renderTimerCard(card: HTMLElement, timer: TimerConfig, idx: number): void {
-        const hdr = card.createDiv({ cls: 'wd-settings-timer-header' });
-        const titleEl = hdr.createDiv({ cls: 'wd-settings-timer-title' });
-        titleEl.textContent = `${timer.emoji} ${timer.name || `Таймер ${idx + 1}`}`;
+        const onSave = async () => {
+            await this.plugin.saveSettings();
+            this.plugin.refreshView();
+        };
 
+        // Row 1: emoji trigger, color, notify, delete
+        const row1 = card.createDiv({ cls: 'wd-card-row1' });
+
+        // Emoji
+        const emojiField = row1.createDiv({ cls: 'wd-form-field' });
+        emojiField.createEl('label', {
+            cls: 'wd-form-label',
+            text: t('icon'),
+            attr: { title: t('iconHint') },
+        });
+        const emojiTrigger = emojiField.createEl('button', {
+            cls: 'wd-emoji-trigger',
+            text: timer.emoji,
+        });
+
+        // Emoji collapsible panel
+        const emojiPanelWrap = card.createDiv({ cls: 'wd-emoji-panel-wrap' });
+        const emojiGrid = emojiPanelWrap.createDiv({ cls: 'wd-emoji-grid' });
+        EMOJIS.forEach((em) => {
+            const btn = emojiGrid.createEl('button', { cls: 'wd-emoji-option', text: em });
+            if (em === timer.emoji) btn.addClass('active');
+            btn.addEventListener('click', async () => {
+                timer.emoji = em;
+                emojiTrigger.textContent = em;
+                emojiGrid
+                    .querySelectorAll('.wd-emoji-option')
+                    .forEach((b) => b.removeClass('active'));
+                btn.addClass('active');
+                emojiPanelWrap.removeClass('open');
+                emojiTrigger.removeClass('open');
+                await onSave();
+            });
+        });
+
+        emojiTrigger.addEventListener('click', () => {
+            const wasOpen = emojiPanelWrap.hasClass('open');
+            const listEl = card.parentElement;
+            if (listEl) {
+                listEl
+                    .querySelectorAll('.wd-emoji-panel-wrap.open')
+                    .forEach((el) => el.removeClass('open'));
+                listEl
+                    .querySelectorAll('.wd-emoji-trigger.open')
+                    .forEach((el) => el.removeClass('open'));
+            }
+            if (!wasOpen) {
+                emojiPanelWrap.addClass('open');
+                emojiTrigger.addClass('open');
+            }
+        });
+
+        // Color
+        const colorField = row1.createDiv({ cls: 'wd-form-field' });
+        colorField.createEl('label', {
+            cls: 'wd-form-label',
+            text: t('color'),
+            attr: { title: t('colorHint') },
+        });
+        const colorWrap = colorField.createDiv({ cls: 'wd-form-color-wrap' });
+        const colorPicker = colorWrap.createEl('input', {
+            attr: { type: 'color', value: timer.color || '#7c6af7' },
+        });
+        colorPicker.addEventListener('input', async () => {
+            timer.color = colorPicker.value;
+            await onSave();
+        });
+
+        // Notify
+        const notifyField = row1.createDiv({ cls: 'wd-form-field' });
+        notifyField.createEl('label', {
+            cls: 'wd-form-label',
+            text: t('notify'),
+            attr: { title: t('notifyHint') },
+        });
+        const toggleWrap = notifyField.createDiv({ cls: 'checkbox-container' });
+        if (timer.notify) toggleWrap.addClass('is-enabled');
+        toggleWrap.addEventListener('click', async () => {
+            timer.notify = !toggleWrap.hasClass('is-enabled');
+            toggleWrap.toggleClass('is-enabled', timer.notify);
+            await onSave();
+        });
+
+        // Delete button
         if (this.plugin.settings.timers.length > 1) {
-            const delBtn = hdr.createEl('button', { cls: 'wd-del-btn', text: '✕ Удалить' });
+            const delBtn = row1.createEl('button', {
+                cls: 'wd-del-btn',
+                text: '✕',
+                attr: { title: t('deleteTimer') },
+            });
             delBtn.addEventListener('click', () => {
                 new ConfirmModal(
                     this.plugin.app,
-                    `Удалить таймер "${timer.name || timer.emoji}"?`,
+                    t('confirmDelete', { name: timer.name || timer.emoji }),
                     async () => {
                         this.plugin.settings.timers.splice(idx, 1);
                         await this.plugin.saveSettings();
@@ -65,81 +153,41 @@ export class WorkdaySettingTab extends PluginSettingTab {
             });
         }
 
-        // Название
-        new Setting(card)
-            .setName('Название')
-            .setDesc('Отображается при наведении на вкладку и в уведомлении')
-            .addText((t) =>
-                t
-                    .setPlaceholder('Мой таймер')
-                    .setValue(timer.name || '')
-                    .onChange(async (v) => {
-                        timer.name = v.trim();
-                        titleEl.textContent = `${timer.emoji} ${timer.name || `Таймер ${idx + 1}`}`;
-                        await this.plugin.saveSettings();
-                        this.plugin.refreshView();
-                    }),
-            );
+        // Row 2: name + type
+        const row2 = card.createDiv({ cls: 'wd-form-row-2' });
 
-        // Эмодзи
-        card.createEl('div', {
-            text: 'Иконка',
-            attr: { style: 'font-size:12px;color:var(--text-muted);margin:8px 0 4px;' },
+        // Name
+        const nameField = row2.createDiv({ cls: 'wd-form-field' });
+        nameField.createEl('label', { cls: 'wd-form-label', text: t('name') });
+        const nameInput = nameField.createEl('input', {
+            cls: 'wd-card-name-input',
+            attr: { placeholder: t('myTimer') },
         });
-        const emojiGrid = card.createDiv({ cls: 'wd-emoji-grid' });
-        EMOJIS.forEach((em) => {
-            const btn = emojiGrid.createEl('button', { cls: 'wd-emoji-btn', text: em });
-            if (em === timer.emoji) btn.addClass('active');
-            btn.addEventListener('click', async () => {
-                timer.emoji = em;
-                emojiGrid.querySelectorAll('.wd-emoji-btn').forEach((b) => b.removeClass('active'));
-                btn.addClass('active');
-                titleEl.textContent = `${em} ${timer.name || `Таймер ${idx + 1}`}`;
-                await this.plugin.saveSettings();
-                this.plugin.refreshView();
-            });
+        nameInput.value = timer.name || '';
+        nameInput.addEventListener('input', async () => {
+            timer.name = nameInput.value.trim();
+            await onSave();
         });
 
-        // Тип
-        new Setting(card).setName('Тип таймера').addDropdown((dd) =>
-            dd
-                .addOption('range', '⏱ Диапазонный (ежедневно, от времени до времени)')
-                .addOption('countdown', '📅 Обратный отсчёт (до конкретной даты)')
-                .setValue(timer.type || 'range')
-                .onChange(async (v) => {
-                    timer.type = v as TimerConfig['type'];
-                    await this.plugin.saveSettings();
-                    this.plugin.refreshView();
-                    this.display();
-                }),
-        );
-
-        // Цвет
-        new Setting(card).setName('Цвет прогресс-бара').addColorPicker((cp) =>
-            cp.setValue(timer.color || '#7c6af7').onChange(async (v) => {
-                timer.color = v;
-                await this.plugin.saveSettings();
-                this.plugin.refreshView();
-            }),
-        );
-
-        // Уведомление
-        new Setting(card)
-            .setName('Уведомление при завершении')
-            .setDesc('Системное уведомление когда таймер закончится')
-            .addToggle((toggle) =>
-                toggle.setValue(timer.notify ?? false).onChange(async (v) => {
-                    timer.notify = v;
-                    await this.plugin.saveSettings();
-                }),
-            );
-
-        // Поля в зависимости от типа
-        const onSave = async () => {
+        // Type
+        const typeField = row2.createDiv({ cls: 'wd-form-field' });
+        typeField.createEl('label', { cls: 'wd-form-label', text: t('type') });
+        const typeSelect = typeField.createEl('select', { cls: 'wd-form-select' });
+        [
+            { value: 'range', text: t('range') },
+            { value: 'countdown', text: t('countdown') },
+        ].forEach(({ value, text }) => {
+            const opt = typeSelect.createEl('option', { text, value });
+            if (value === timer.type) opt.selected = true;
+        });
+        typeSelect.addEventListener('change', async () => {
+            timer.type = typeSelect.value as TimerConfig['type'];
             await this.plugin.saveSettings();
             this.plugin.refreshView();
-        };
+            this.display();
+        });
 
+        // Row 3: type-specific fields
         if (timer.type === 'range') {
             renderRangeFields(card, timer, onSave);
         } else {
