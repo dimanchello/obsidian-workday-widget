@@ -41,16 +41,16 @@
 }
 
 .workday-widget .wd-tab {
-    font-size: 14px;          /* было 20px */
-    padding: 3px 6px;         /* компактнее */
+    font-size: 14px;
+    padding: 3px 6px;
     border-radius: 5px;
-    cursor: pointer;
+    cursor: grab;
     background: var(--background-secondary);
     border: 2px solid transparent;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background 0.15s, opacity 0.15s;
     line-height: 1.2;
     user-select: none;
-    flex-shrink: 0;           /* не сжимаем, даём скролл */
+    flex-shrink: 0;
     white-space: nowrap;
     display: flex;
     align-items: center;
@@ -317,14 +317,11 @@
 .wd-form-row-2 {
     display: grid;
     gap: 8px;
+    grid-template-columns: 1fr 1fr;
 }
 
 .wd-form-row-3 {
     grid-template-columns: 1fr 1fr 1fr;
-}
-
-.wd-form-row-2 {
-    grid-template-columns: 1fr 1fr;
 }
 
 /* Form field group */
@@ -439,33 +436,40 @@
     filter: brightness(1.15);
 }
 
-/* Drag & Drop вкладок */
-.workday-widget .wd-tab {
-    font-size: 14px;
-    padding: 3px 6px;
-    border-radius: 5px;
-    cursor: grab;
+/* List mode — панели друг за другом */
+.workday-widget .wd-panel-list-item {
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.workday-widget .wd-panel-list-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+/* Display mode selector in settings */
+.wd-settings-display-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 8px 10px;
     background: var(--background-secondary);
-    border: 2px solid transparent;
-    transition: border-color 0.15s, background 0.15s, opacity 0.15s;
-    line-height: 1.2;
-    user-select: none;
+    border-radius: 6px;
+}
+
+.wd-settings-display-row .wd-form-label {
     flex-shrink: 0;
-    white-space: nowrap;
+}
+
+.wd-settings-display-row .wd-form-select {
+    max-width: 140px;
 }
 
 .workday-widget .wd-tab:active {
     cursor: grabbing;
-}
-
-.workday-widget .wd-tab:hover {
-    background: var(--background-modifier-hover);
-}
-
-.workday-widget .wd-tab.active {
-    border-color: var(--interactive-accent);
-    background: var(--background-modifier-hover);
-    cursor: grab;
 }
 
 .workday-widget .wd-tab.wd-tab-dragging {

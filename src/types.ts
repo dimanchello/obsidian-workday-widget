@@ -1,3 +1,5 @@
+import type { App } from 'obsidian';
+
 export type TimerType = 'range' | 'countdown';
 
 export interface TimerConfig {
@@ -6,8 +8,10 @@ export interface TimerConfig {
     name: string;
     type: TimerType;
     color: string;
-    notify: boolean;
-    notified: boolean; // persist across restarts
+    notifyStart: boolean;
+    notifyEnd: boolean;
+    notifiedStart: boolean;
+    notifiedEnd: boolean;
     // range
     startTime: string;
     endTime: string;
@@ -16,9 +20,19 @@ export interface TimerConfig {
     startDatetime: string; // YYYY-MM-DDTHH:mm (datetime-local)
 }
 
+export type DisplayMode = 'tabs' | 'list';
+
+export interface PluginBridge {
+    settings: PluginSettings;
+    saveSettings(): Promise<void>;
+    refreshView(): void;
+    app: App;
+}
+
 export interface PluginSettings {
     timers: TimerConfig[];
     activeIndex: number;
+    displayMode: DisplayMode;
 }
 
 // DOM-ссылки на элементы одной панели таймера

@@ -1,5 +1,4 @@
-import { TimerConfig } from '../../types';
-import { todayStr } from '../../utils';
+import type { TimerConfig } from '../../types';
 import { t } from '../../i18n';
 
 export function renderCountdownFields(
@@ -7,15 +6,8 @@ export function renderCountdownFields(
     timer: TimerConfig,
     onSave: () => Promise<void>,
 ): void {
-    const isNew = !timer.startDatetime && !timer.targetDatetime;
-    if (isNew) {
-        timer.startDatetime = `${todayStr()}T09:00`;
-        void onSave();
-    }
-
     const row = card.createDiv({ cls: 'wd-form-row-2' });
 
-    // Start group
     const startGroup = row.createDiv({ cls: 'wd-form-field' });
     startGroup.createEl('label', {
         cls: 'wd-form-label',
@@ -27,12 +19,11 @@ export function renderCountdownFields(
         attr: { type: 'datetime-local' },
     });
     startInput.value = timer.startDatetime;
-    startInput.addEventListener('change', async () => {
+    startInput.addEventListener('input', async () => {
         timer.startDatetime = startInput.value;
         await onSave();
     });
 
-    // Target group
     const targetGroup = row.createDiv({ cls: 'wd-form-field' });
     targetGroup.createEl('label', {
         cls: 'wd-form-label',
@@ -44,7 +35,7 @@ export function renderCountdownFields(
         attr: { type: 'datetime-local' },
     });
     targetInput.value = timer.targetDatetime;
-    targetInput.addEventListener('change', async () => {
+    targetInput.addEventListener('input', async () => {
         timer.targetDatetime = targetInput.value;
         await onSave();
     });

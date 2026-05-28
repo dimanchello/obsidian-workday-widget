@@ -44,18 +44,6 @@ export function todayStr(): string {
     ].join('-');
 }
 
-export function inputStyle(): string {
-    return [
-        'padding:4px 8px',
-        'border-radius:4px',
-        'border:1px solid var(--background-modifier-border)',
-        'background:var(--background-primary)',
-        'color:var(--text-normal)',
-        'color-scheme:dark',
-        'width:150px',
-    ].join(';');
-}
-
 export function isValidDate(d: Date): boolean {
     return d instanceof Date && !isNaN(d.getTime());
 }

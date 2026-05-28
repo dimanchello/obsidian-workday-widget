@@ -1,18 +1,17 @@
-export type Lang = 'ru' | 'en';
+type Lang = 'ru' | 'en';
 
-function detectLang(): Lang {
+function getLang(): Lang {
     if (typeof document === 'undefined') return 'ru';
     const htmlLang = document.documentElement.lang || '';
     return htmlLang.startsWith('ru') ? 'ru' : 'en';
 }
 
-const lang: Lang = detectLang();
-
 const dict: Record<Lang, Record<string, string>> = {
     ru: {
         icon: 'Иконка',
         color: 'Цвет',
-        notify: 'Уведомление',
+        notifyStart: 'Уведомление о начале',
+        notifyEnd: 'Уведомление о конце',
         name: 'Название',
         type: 'Тип',
         range: '⏱ Диапазон',
@@ -47,20 +46,30 @@ const dict: Record<Lang, Record<string, string>> = {
         tabTitleRangeNoName: 'Диапазон ({start} – {end})',
         tabTitleCountdownNoName: 'До {date}',
         notificationTitle: '⏱️ Workday Widget',
+        notificationBodyStart: 'Таймер "{name}" начался!',
+        notificationBodyNoNameStart: 'Таймер {emoji} начался!',
         notificationBody: 'Таймер "{name}" завершился!',
         notificationBodyNoName: 'Таймер {emoji} завершился!',
         workdayWidget: '⏱️ Workday Widget',
         langLabel: 'Язык / Language',
         iconHint: 'Выберите иконку для таймера',
         colorHint: 'Цвет прогресс-бара',
-        notifyHint: 'Уведомление при завершении таймера',
+        notifyStartHint: 'Уведомление при начале таймера',
+        notifyEndHint: 'Уведомление при завершении таймера',
         startGroupHint: 'Дата и время начала',
         targetGroupHint: 'Дата и время цели',
+        displayMode: 'Отображение',
+        displayModeTabs: 'Вкладки',
+        displayModeList: 'Список',
+        cancel: 'Отмена',
+        confirmDeleteAction: 'Да, удалить',
+        countdownNoStart: '—',
     },
     en: {
         icon: 'Icon',
         color: 'Color',
-        notify: 'Notification',
+        notifyStart: 'Start notification',
+        notifyEnd: 'End notification',
         name: 'Name',
         type: 'Type',
         range: '⏱ Range',
@@ -95,20 +104,30 @@ const dict: Record<Lang, Record<string, string>> = {
         tabTitleRangeNoName: 'Range ({start} – {end})',
         tabTitleCountdownNoName: 'Until {date}',
         notificationTitle: '⏱️ Workday Widget',
+        notificationBodyStart: 'Timer "{name}" started!',
+        notificationBodyNoNameStart: 'Timer {emoji} started!',
         notificationBody: 'Timer "{name}" completed!',
         notificationBodyNoName: 'Timer {emoji} completed!',
         workdayWidget: '⏱️ Workday Widget',
         langLabel: 'Language',
         iconHint: 'Choose an icon for the timer',
         colorHint: 'Progress bar color',
-        notifyHint: 'Notify when timer ends',
+        notifyStartHint: 'Notify when timer starts',
+        notifyEndHint: 'Notify when timer ends',
         startGroupHint: 'Start date and time',
         targetGroupHint: 'Target date and time',
+        displayMode: 'Display mode',
+        displayModeTabs: 'Tabs',
+        displayModeList: 'List',
+        cancel: 'Cancel',
+        confirmDeleteAction: 'Yes, delete',
+        countdownNoStart: '—',
     },
 };
 
 export function t(key: string, ...args: Record<string, string>[]): string {
-    const text = dict[lang][key] ?? dict['ru'][key] ?? key;
+    const lang = getLang();
+    const text = dict[lang][key] ?? dict.ru[key] ?? key;
     if (args.length > 0) {
         const params = args[0];
         return text.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `{${k}}`);

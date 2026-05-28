@@ -1,21 +1,22 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import type { WorkspaceLeaf } from 'obsidian';
+import { ItemView } from 'obsidian';
 import { VIEW_TYPE } from '../constants';
-import { Panel, PanelElements, TimerConfig } from '../types';
-import { toMin, fromMin, durStr, durStrShort, isValidDate } from '../utils';
+import type { Panel, PanelElements, PluginBridge, TimerConfig } from '../types';
+import { fromMin, durStr, durStrShort } from '../utils';
+import { calcRange, calcCountdown } from '../timerLogic';
 import { sendNotification } from '../notifications';
 import { ConfirmModal } from '../modals/ConfirmModal';
-import WorkdayPlugin from '../main';
 import { t } from '../i18n';
 
 export class WorkdayView extends ItemView {
-    private plugin: WorkdayPlugin;
+    private plugin: PluginBridge;
     private interval: number | null = null;
-    private activeIndex: number = 0;
+    private activeIndex = 0;
     private panels: Record<number, Panel> = {};
     private tabsEl!: HTMLElement;
     private panelsEl!: HTMLElement;
 
-    constructor(leaf: WorkspaceLeaf, plugin: WorkdayPlugin) {
+    constructor(leaf: WorkspaceLeaf, plugin: PluginBridge) {
         super(leaf);
         this.plugin = plugin;
     }
@@ -47,7 +48,7 @@ export class WorkdayView extends ItemView {
         root.empty();
         root.addClass('workday-widget');
 
-        const { timers } = this.plugin.settings;
+        const { timers, displayMode } = this.plugin.settings;
 
         if (!timers || timers.length === 0) {
             root.createEl('p', {
@@ -63,19 +64,30 @@ export class WorkdayView extends ItemView {
         this.tabsEl = root.createDiv({ cls: 'wd-tabs' });
         this.panelsEl = root.createDiv();
 
-        this.buildTabs(timers);
+        if (displayMode === 'list') {
+            this.tabsEl.style.display = 'none';
+        } else {
+            this.buildTabs(timers);
+        }
         this.buildPanels(timers);
 
         this.startTick();
     }
 
     rebuild(): void {
-        const { timers } = this.plugin.settings;
+        this.stopTick();
+
+        const { timers, displayMode } = this.plugin.settings;
         if (this.activeIndex >= timers.length) this.activeIndex = 0;
 
-        this.buildTabs(timers);
+        if (displayMode === 'list') {
+            this.tabsEl.style.display = 'none';
+        } else {
+            this.buildTabs(timers);
+        }
         this.buildPanels(timers);
-        this.tick();
+
+        this.startTick();
     }
 
     private buildTabs(timers: TimerConfig[]): void {
@@ -104,8 +116,10 @@ export class WorkdayView extends ItemView {
             tab.addEventListener('click', () => this.switchTab(i));
 
             tab.addEventListener('dragstart', (e) => {
+                const dt = e.dataTransfer;
+                if (!dt) return;
                 dragSrcIdx = i;
-                e.dataTransfer!.effectAllowed = 'move';
+                dt.effectAllowed = 'move';
                 setTimeout(() => tab.addClass('wd-tab-dragging'), 0);
             });
 
@@ -118,8 +132,10 @@ export class WorkdayView extends ItemView {
             });
 
             tab.addEventListener('dragover', (e) => {
+                const dt = e.dataTransfer;
+                if (!dt) return;
                 e.preventDefault();
-                e.dataTransfer!.dropEffect = 'move';
+                dt.dropEffect = 'move';
                 if (dragSrcIdx === null || dragSrcIdx === i) return;
                 this.tabsEl
                     .querySelectorAll('.wd-tab')
@@ -181,7 +197,7 @@ export class WorkdayView extends ItemView {
         if (this.panels[i]) this.panels[i].wrap.style.display = 'flex';
 
         this.plugin.settings.activeIndex = i;
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
 
         this.tick();
     }
@@ -200,11 +216,16 @@ export class WorkdayView extends ItemView {
         this.panelsEl.empty();
         this.panels = {};
 
+        const isList = this.plugin.settings.displayMode === 'list';
+
         timers.forEach((timer, idx) => {
             const wrap = this.panelsEl.createDiv();
-            wrap.style.display = idx === this.activeIndex ? 'flex' : 'none';
+            wrap.style.display = !isList && idx !== this.activeIndex ? 'none' : 'flex';
             wrap.style.flexDirection = 'column';
             wrap.style.gap = '10px';
+            if (isList) {
+                wrap.addClass('wd-panel-list-item');
+            }
             this.panels[idx] = { wrap, els: this.buildPanel(wrap, timer) };
         });
     }
@@ -336,16 +357,17 @@ export class WorkdayView extends ItemView {
     }
 
     private tickRange(timer: TimerConfig, now: Date, els: PanelElements): void {
-        const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
-        const startM = toMin(timer.startTime);
-        const endM = toMin(timer.endTime);
-        const totalM = endM > startM ? endM - startM : 0;
+        const r = calcRange(timer, now);
 
-        els.lblStart.textContent = fromMin(startM);
-        els.lblEnd.textContent = fromMin(endM);
-        if (els.endEl) els.endEl.textContent = fromMin(endM);
+        els.lblStart.textContent = fromMin(r.startM);
+        els.lblEnd.textContent = fromMin(r.endM);
+        if (els.endEl) els.endEl.textContent = fromMin(r.endM);
+        els.barEl.style.width = `${r.pct.toFixed(2)}%`;
+        els.lblPct.textContent = `${r.pct.toFixed(1)}%`;
+        els.passedEl.textContent = durStrShort(r.passedM);
+        els.leftEl.textContent = durStrShort(r.leftM);
 
-        if (totalM <= 0) {
+        if (r.status === 'invalid') {
             this.setStatus(
                 els,
                 t('statusNoRange'),
@@ -355,89 +377,43 @@ export class WorkdayView extends ItemView {
             return;
         }
 
-        let pct = 0,
-            passedM = 0,
-            leftM = 0;
-
-        if (nowMin < startM) {
-            timer.notified = false;
-            leftM = totalM;
+        if (r.status === 'before') {
+            const hadFlags = timer.notifiedStart || timer.notifiedEnd;
+            timer.notifiedStart = false;
+            timer.notifiedEnd = false;
+            if (hadFlags) {
+                void this.plugin.saveSettings();
+            }
             this.setStatus(
                 els,
                 t('statusBefore'),
                 'var(--text-muted)',
                 'var(--background-secondary)',
             );
-        } else if (nowMin >= endM) {
-            pct = 100;
-            passedM = totalM;
-            this.setStatus(els, t('statusDone'), '#a6e3a1', '#1e3a2f');
-            if (timer.notify && !timer.notified) {
-                timer.notified = true;
-                void this.plugin.saveSettings();
-                sendNotification(timer);
-            }
-        } else {
-            const elapsed = nowMin - startM;
-            pct = Math.min((elapsed / totalM) * 100, 100);
-            passedM = elapsed;
-            leftM = Math.max(0, totalM - elapsed);
-            this.setStatus(els, t('statusRunning'), '#89b4fa', '#1e2a3a');
+            return;
         }
 
-        els.barEl.style.width = `${pct.toFixed(2)}%`;
-        els.lblPct.textContent = `${pct.toFixed(1)}%`;
-        els.passedEl.textContent = durStrShort(passedM);
-        els.leftEl.textContent = durStrShort(leftM);
+        if (r.status === 'done') {
+            this.setStatus(els, t('statusDone'), '#a6e3a1', '#1e3a2f');
+            if (timer.notifyEnd && !timer.notifiedEnd) {
+                timer.notifiedEnd = true;
+                void this.plugin.saveSettings();
+                sendNotification(timer, 'end');
+            }
+            return;
+        }
+
+        this.setStatus(els, t('statusRunning'), '#89b4fa', '#1e2a3a');
+        timer.notifiedEnd = false;
+        if (timer.notifyStart && !timer.notifiedStart) {
+            timer.notifiedStart = true;
+            void this.plugin.saveSettings();
+            sendNotification(timer, 'start');
+        }
     }
 
     private tickCountdown(timer: TimerConfig, now: Date, els: PanelElements): void {
-        if (!timer.targetDatetime) {
-            this.setStatus(
-                els,
-                t('statusNoTarget'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
-            return;
-        }
-
-        const target = new Date(timer.targetDatetime + ':00');
-        if (!isValidDate(target)) {
-            this.setStatus(
-                els,
-                t('statusBadTarget'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
-            return;
-        }
-
-        const hasStart = !!timer.startDatetime;
-        const start = hasStart ? new Date(timer.startDatetime + ':00') : null;
-
-        if (start && !isValidDate(start)) {
-            this.setStatus(
-                els,
-                t('statusBadStart'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
-            return;
-        }
-
-        const leftSec = Math.max(0, (target.getTime() - now.getTime()) / 1000);
-        const totalSec = start ? Math.max(0, (target.getTime() - start.getTime()) / 1000) : null;
-        const passedSec = totalSec !== null ? Math.max(0, totalSec - leftSec) : null;
-        const pct =
-            totalSec !== null && totalSec > 0 && passedSec !== null
-                ? Math.min((passedSec / totalSec) * 100, 100)
-                : leftSec <= 0
-                  ? 100
-                  : 0;
+        const r = calcCountdown(timer, now);
 
         const fmt = (d: Date) =>
             d.toLocaleDateString([], {
@@ -446,29 +422,75 @@ export class WorkdayView extends ItemView {
                 year: '2-digit',
             });
 
-        els.lblStart.textContent = start ? fmt(start) : fmt(now);
-        els.lblEnd.textContent = fmt(target);
-        els.barEl.style.width = `${pct.toFixed(2)}%`;
-        els.lblPct.textContent = pct > 0 ? `${pct.toFixed(1)}%` : '';
+        els.lblStart.textContent =
+            r.hasStart && r.startDate ? fmt(r.startDate) : t('countdownNoStart');
+        els.lblEnd.textContent = r.targetDate ? fmt(r.targetDate) : '—';
 
-        const isDone = leftSec <= 0;
+        els.barEl.style.width = `${r.pct.toFixed(2)}%`;
+        els.lblPct.textContent = r.pct > 0 ? `${r.pct.toFixed(1)}%` : '';
 
-        if (isDone) {
-            els.passedEl.textContent = totalSec ? durStr(totalSec) : '—';
+        if (r.status === 'no-target') {
+            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
+            this.setStatus(
+                els,
+                t('statusNoTarget'),
+                'var(--text-muted)',
+                'var(--background-secondary)',
+            );
+            return;
+        }
+
+        if (r.status === 'bad-target') {
+            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
+            this.setStatus(
+                els,
+                t('statusBadTarget'),
+                'var(--text-muted)',
+                'var(--background-secondary)',
+            );
+            return;
+        }
+
+        if (r.status === 'bad-start') {
+            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
+            this.setStatus(
+                els,
+                t('statusBadStart'),
+                'var(--text-muted)',
+                'var(--background-secondary)',
+            );
+            return;
+        }
+
+        if (r.isDone) {
+            els.passedEl.textContent = r.totalSec ? durStr(r.totalSec) : '—';
             els.leftEl.textContent = '0с';
             if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
             this.setStatus(els, t('statusReached'), '#a6e3a1', '#1e3a2f');
-            if (timer.notify && !timer.notified) {
-                timer.notified = true;
+            if (timer.notifyEnd && !timer.notifiedEnd) {
+                timer.notifiedEnd = true;
                 void this.plugin.saveSettings();
-                sendNotification(timer);
+                sendNotification(timer, 'end');
             }
-        } else {
-            timer.notified = false;
-            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
-            els.passedEl.textContent = passedSec !== null ? durStr(passedSec) : '—';
-            els.leftEl.textContent = durStr(leftSec);
-            this.setStatus(els, t('statusCountdown'), '#89b4fa', '#1e2a3a');
+            return;
+        }
+
+        if (els.deleteBtn) els.deleteBtn.style.display = 'none';
+        els.passedEl.textContent = r.passedSec !== null ? durStr(r.passedSec) : '—';
+        els.leftEl.textContent = durStr(r.leftSec);
+        this.setStatus(els, t('statusCountdown'), '#89b4fa', '#1e2a3a');
+
+        timer.notifiedEnd = false;
+
+        if (r.startDate && now >= r.startDate) {
+            if (timer.notifyStart && !timer.notifiedStart) {
+                timer.notifiedStart = true;
+                void this.plugin.saveSettings();
+                sendNotification(timer, 'start');
+            }
+        } else if (timer.notifiedStart) {
+            timer.notifiedStart = false;
+            void this.plugin.saveSettings();
         }
     }
 

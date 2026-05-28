@@ -18,7 +18,7 @@ describe('toMin', () => {
     });
 
     it('returns 0 for undefined-like values via fallback', () => {
-        expect(toMin('' as string)).toBe(0);
+        expect(toMin('')).toBe(0);
     });
 
     it('handles incomplete time string (only hours)', () => {

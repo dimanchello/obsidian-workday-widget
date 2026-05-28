@@ -1,4 +1,4 @@
-import { TimerConfig } from '../../types';
+import type { TimerConfig } from '../../types';
 import { t } from '../../i18n';
 
 export function renderRangeFields(
@@ -15,7 +15,7 @@ export function renderRangeFields(
         attr: { type: 'time' },
     });
     startInput.value = timer.startTime || '09:00';
-    startInput.addEventListener('change', async () => {
+    startInput.addEventListener('input', async () => {
         timer.startTime = startInput.value;
         await onSave();
     });
@@ -27,7 +27,7 @@ export function renderRangeFields(
         attr: { type: 'time' },
     });
     endInput.value = timer.endTime || '18:00';
-    endInput.addEventListener('change', async () => {
+    endInput.addEventListener('input', async () => {
         timer.endTime = endInput.value;
         await onSave();
     });

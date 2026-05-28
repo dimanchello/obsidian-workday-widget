@@ -1,9 +1,10 @@
 import { Plugin } from 'obsidian';
 import { VIEW_TYPE, DEFAULT_SETTINGS } from './constants';
-import { PluginSettings } from './types';
-import { fromMin, toMin } from './utils';
+import type { PluginSettings } from './types';
+import { migrateSettings } from './migrations';
 import { WorkdayView } from './views/WorkdayView';
 import { WorkdaySettingTab } from './settings/SettingsTab';
+import { t } from './i18n';
 
 export default class WorkdayPlugin extends Plugin {
     settings!: PluginSettings;
@@ -15,7 +16,7 @@ export default class WorkdayPlugin extends Plugin {
 
         this.addSettingTab(new WorkdaySettingTab(this.app, this));
 
-        this.addRibbonIcon('timer', 'Workday Widget', () => this.activateView());
+        this.addRibbonIcon('timer', t('workdayWidget'), () => this.activateView());
 
         this.app.workspace.onLayoutReady(() => this.activateView());
     }
@@ -46,25 +47,14 @@ export default class WorkdayPlugin extends Plugin {
     }
 
     async loadSettings(): Promise<void> {
-        const loaded = await this.loadData();
+        const loaded = (await this.loadData()) as Partial<PluginSettings> | undefined;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
 
         if (!this.settings.timers || this.settings.timers.length === 0) {
             this.settings.timers = DEFAULT_SETTINGS.timers;
         }
 
-        // Миграция: workday → range
-        this.settings.timers.forEach((t) => {
-            if ((t.type as string) === 'workday') {
-                const legacy = t as unknown as Record<string, unknown>;
-                t.type = 'range';
-                t.endTime = fromMin(
-                    toMin(t.startTime) +
-                        ((legacy.workHours as number) || 8) * 60 +
-                        ((legacy.lunchMin as number) || 0),
-                );
-            }
-        });
+        migrateSettings(this.settings.timers);
     }
 
     async saveSettings(): Promise<void> {

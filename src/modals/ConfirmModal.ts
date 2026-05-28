@@ -1,4 +1,6 @@
-import { App, Modal } from 'obsidian';
+import type { App } from 'obsidian';
+import { Modal } from 'obsidian';
+import { t } from '../i18n';
 
 export class ConfirmModal extends Modal {
     private message: string;
@@ -23,11 +25,11 @@ export class ConfirmModal extends Modal {
             attr: { style: 'display:flex;gap:8px;justify-content:flex-end;' },
         });
 
-        const cancelBtn = row.createEl('button', { text: 'Отмена' });
+        const cancelBtn = row.createEl('button', { text: t('cancel') });
         cancelBtn.style.cssText = 'padding:6px 14px;border-radius:5px;cursor:pointer;';
         cancelBtn.addEventListener('click', () => this.close());
 
-        const confirmBtn = row.createEl('button', { text: 'Да, удалить' });
+        const confirmBtn = row.createEl('button', { text: t('confirmDeleteAction') });
         confirmBtn.style.cssText = [
             'padding:6px 14px',
             'border-radius:5px',

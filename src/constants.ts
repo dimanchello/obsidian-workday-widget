@@ -1,4 +1,4 @@
-import { PluginSettings, TimerConfig } from './types';
+import type { PluginSettings, TimerConfig } from './types';
 
 export const VIEW_TYPE = 'workday-widget-v2';
 
@@ -139,8 +139,10 @@ export const DEFAULT_TIMER: TimerConfig = {
     name: '',
     type: 'range',
     color: '#7c6af7',
-    notify: false,
-    notified: false,
+    notifyStart: false,
+    notifyEnd: false,
+    notifiedStart: false,
+    notifiedEnd: false,
     startTime: '09:00',
     endTime: '18:00',
     targetDatetime: '',
@@ -157,4 +159,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
         },
     ],
     activeIndex: 0,
+    displayMode: 'tabs',
 };

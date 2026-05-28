@@ -1,18 +1,18 @@
-import { App, PluginSettingTab } from 'obsidian';
+import type { App, Plugin } from 'obsidian';
+import { PluginSettingTab } from 'obsidian';
 import { EMOJIS, DEFAULT_TIMER } from '../constants';
-import { TimerConfig } from '../types';
-import { uid } from '../utils';
+import type { PluginBridge, TimerConfig } from '../types';
+import { uid, todayStr } from '../utils';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { renderRangeFields } from './fields/RangeFields';
 import { renderCountdownFields } from './fields/CountdownFields';
-import WorkdayPlugin from '../main';
 import { t } from '../i18n';
 
 export class WorkdaySettingTab extends PluginSettingTab {
-    private plugin: WorkdayPlugin;
+    private plugin: PluginBridge;
 
-    constructor(app: App, plugin: WorkdayPlugin) {
-        super(app, plugin);
+    constructor(app: App, plugin: PluginBridge) {
+        super(app, plugin as unknown as Plugin);
         this.plugin = plugin;
     }
 
@@ -20,6 +20,25 @@ export class WorkdaySettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
         containerEl.createEl('h2', { text: '⏱️ Workday Widget' });
+
+        const displayRow = containerEl.createDiv({ cls: 'wd-settings-display-row' });
+        displayRow.createEl('label', {
+            cls: 'wd-form-label',
+            text: t('displayMode'),
+        });
+        const displaySelect = displayRow.createEl('select', { cls: 'wd-form-select' });
+        [
+            { value: 'tabs', text: t('displayModeTabs') },
+            { value: 'list', text: t('displayModeList') },
+        ].forEach(({ value, text }) => {
+            const opt = displaySelect.createEl('option', { text, value });
+            if (value === this.plugin.settings.displayMode) opt.selected = true;
+        });
+        displaySelect.addEventListener('change', async () => {
+            this.plugin.settings.displayMode = displaySelect.value as 'tabs' | 'list';
+            await this.plugin.saveSettings();
+            this.plugin.refreshView();
+        });
 
         const listEl = containerEl.createDiv();
         this.plugin.settings.timers.forEach((timer, idx) => {
@@ -50,10 +69,8 @@ export class WorkdaySettingTab extends PluginSettingTab {
             this.plugin.refreshView();
         };
 
-        // Row 1: emoji trigger, color, notify, delete
         const row1 = card.createDiv({ cls: 'wd-card-row1' });
 
-        // Emoji
         const emojiField = row1.createDiv({ cls: 'wd-form-field' });
         emojiField.createEl('label', {
             cls: 'wd-form-label',
@@ -65,7 +82,6 @@ export class WorkdaySettingTab extends PluginSettingTab {
             text: timer.emoji,
         });
 
-        // Emoji collapsible panel
         const emojiPanelWrap = card.createDiv({ cls: 'wd-emoji-panel-wrap' });
         const emojiGrid = emojiPanelWrap.createDiv({ cls: 'wd-emoji-grid' });
         EMOJIS.forEach((em) => {
@@ -101,7 +117,6 @@ export class WorkdaySettingTab extends PluginSettingTab {
             }
         });
 
-        // Color
         const colorField = row1.createDiv({ cls: 'wd-form-field' });
         colorField.createEl('label', {
             cls: 'wd-form-label',
@@ -117,22 +132,34 @@ export class WorkdaySettingTab extends PluginSettingTab {
             await onSave();
         });
 
-        // Notify
-        const notifyField = row1.createDiv({ cls: 'wd-form-field' });
-        notifyField.createEl('label', {
+        const notifyStartField = row1.createDiv({ cls: 'wd-form-field' });
+        notifyStartField.createEl('label', {
             cls: 'wd-form-label',
-            text: t('notify'),
-            attr: { title: t('notifyHint') },
+            text: t('notifyStart'),
+            attr: { title: t('notifyStartHint') },
         });
-        const toggleWrap = notifyField.createDiv({ cls: 'checkbox-container' });
-        if (timer.notify) toggleWrap.addClass('is-enabled');
-        toggleWrap.addEventListener('click', async () => {
-            timer.notify = !toggleWrap.hasClass('is-enabled');
-            toggleWrap.toggleClass('is-enabled', timer.notify);
+        const toggleStart = notifyStartField.createDiv({ cls: 'checkbox-container' });
+        if (timer.notifyStart) toggleStart.addClass('is-enabled');
+        toggleStart.addEventListener('click', async () => {
+            timer.notifyStart = !toggleStart.hasClass('is-enabled');
+            toggleStart.toggleClass('is-enabled', timer.notifyStart);
             await onSave();
         });
 
-        // Delete button
+        const notifyEndField = row1.createDiv({ cls: 'wd-form-field' });
+        notifyEndField.createEl('label', {
+            cls: 'wd-form-label',
+            text: t('notifyEnd'),
+            attr: { title: t('notifyEndHint') },
+        });
+        const toggleEnd = notifyEndField.createDiv({ cls: 'checkbox-container' });
+        if (timer.notifyEnd) toggleEnd.addClass('is-enabled');
+        toggleEnd.addEventListener('click', async () => {
+            timer.notifyEnd = !toggleEnd.hasClass('is-enabled');
+            toggleEnd.toggleClass('is-enabled', timer.notifyEnd);
+            await onSave();
+        });
+
         if (this.plugin.settings.timers.length > 1) {
             const delBtn = row1.createEl('button', {
                 cls: 'wd-del-btn',
@@ -153,10 +180,8 @@ export class WorkdaySettingTab extends PluginSettingTab {
             });
         }
 
-        // Row 2: name + type
         const row2 = card.createDiv({ cls: 'wd-form-row-2' });
 
-        // Name
         const nameField = row2.createDiv({ cls: 'wd-form-field' });
         nameField.createEl('label', { cls: 'wd-form-label', text: t('name') });
         const nameInput = nameField.createEl('input', {
@@ -169,7 +194,6 @@ export class WorkdaySettingTab extends PluginSettingTab {
             await onSave();
         });
 
-        // Type
         const typeField = row2.createDiv({ cls: 'wd-form-field' });
         typeField.createEl('label', { cls: 'wd-form-label', text: t('type') });
         const typeSelect = typeField.createEl('select', { cls: 'wd-form-select' });
@@ -182,12 +206,14 @@ export class WorkdaySettingTab extends PluginSettingTab {
         });
         typeSelect.addEventListener('change', async () => {
             timer.type = typeSelect.value as TimerConfig['type'];
+            if (timer.type === 'countdown' && !timer.startDatetime && !timer.targetDatetime) {
+                timer.startDatetime = `${todayStr()}T09:00`;
+            }
             await this.plugin.saveSettings();
             this.plugin.refreshView();
             this.display();
         });
 
-        // Row 3: type-specific fields
         if (timer.type === 'range') {
             renderRangeFields(card, timer, onSave);
         } else {

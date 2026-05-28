@@ -5,25 +5,36 @@
 ```bash
 npm run dev           # Режим разработки (watch)
 npm run build         # Продакшн сборка в dist/
-npm run lint          # Проверка линтером
+npm run lint          # Проверка линтером (строгие правила)
 npm run lint:fix      # Автоисправление линтера
 npm run format        # Форматирование кода
 npm run format:check  # Проверка форматирования
 npm run test          # Запуск unit тестов
 npm run test:watch    # Тесты в режиме watch
 npm run typecheck     # Проверка типов TypeScript
-npm run validate      # typecheck + lint + format + test
+npm run knip          # Поиск мёртвого кода
+npm run validate      # typecheck + lint + knip + format:check + test
 ```
+
+## Правило: после любой доработки кода ОБЯЗАТЕЛЬНО запускать `npm run validate`
+
+Валидация включает: typecheck (tsc), линтер (eslint со strict type-checked правилами), поиск мёртвого кода (knip), проверку форматирования (prettier), и все unit-тесты (vitest).
 
 ## Структура проекта
 
 ```
 src/
 ├── main.ts              # Точка входа, класс плагина
-├── types.ts             # TypeScript типы
+├── types.ts             # TypeScript типы + PluginBridge
 ├── constants.ts         # Константы и дефолтные значения
 ├── utils.ts             # Чистые утилиты (покрываются тестами)
-├── notifications.ts     # Системные уведомления
+├── utils.test.ts        # Тесты утилит
+├── timerLogic.ts        # Чистые функции расчёта таймеров
+├── timerLogic.test.ts   # Тесты расчёта таймеров
+├── migrations.ts        # Миграция данных
+├── migrations.test.ts   # Тесты миграции
+├── i18n.ts              # Интернационализация
+├── notifications.ts     # Системные уведомления (Notice + browser Notification)
 ├── modals/
 │   └── ConfirmModal.ts  # Модалка подтверждения
 ├── views/
@@ -43,13 +54,23 @@ src/
 - Tail comma в объектах/массивах
 - Максимальная ширина строки: 100 символов
 - Имена файлов: PascalCase для классов, camelCase для утилит
+- Все type-only импорты: `import type { ... }`
+- Non-null assertion (`!`) запрещён
+- Строгая типизация: `no-explicit-any` — error
 
 ## Тесты
 
-- Тесты находятся рядом с тестируемым файлом: `src/utils.test.ts`
-- Покрываются только чистые функции с бизнес-логикой (utils.ts)
+- Тесты находятся рядом с тестируемым файлом: `*.test.ts`
+- Покрываются все чистые функции: utils.ts, timerLogic.ts, migrations.ts
 - UI-компоненты (WorkdayView, SettingsTab, модалки) не покрываются — они зависят от Obsidian API
 - Фреймворк: Vitest
+- **Правило: после любой доработки кода — синхронизировать тесты с изменениями.** Новая или изменённая бизнес-логика должна быть покрыта тестами. Запуск `npm run validate` перед коммитом обязателен.
+
+## Архитектура
+
+- `PluginBridge` (types.ts) разрывает циклическую зависимость main ↔ view/settings
+- Бизнес-логика таймеров (timerLogic.ts) отделена от DOM (WorkdayView.ts)
+- Миграция данных вынесена в migrations.ts
 
 ## Сборка
 
