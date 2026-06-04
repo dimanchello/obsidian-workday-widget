@@ -17,8 +17,6 @@ export default class WorkdayPlugin extends Plugin {
         this.addSettingTab(new WorkdaySettingTab(this.app, this));
 
         this.addRibbonIcon('timer', t('workdayWidget'), () => this.activateView());
-
-        this.app.workspace.onLayoutReady(() => this.activateView());
     }
 
     async onunload(): Promise<void> {
