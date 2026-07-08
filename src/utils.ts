@@ -1,3 +1,9 @@
+import { t } from './i18n';
+
+const SECONDS_IN_DAY = 86400;
+const SECONDS_IN_HOUR = 3600;
+const SECONDS_IN_MINUTE = 60;
+
 export function uid(): string {
     return Math.random().toString(36).slice(2, 9);
 }
@@ -16,23 +22,23 @@ export function fromMin(m: number): string {
 
 export function durStr(totalSec: number): string {
     totalSec = Math.max(0, Math.round(totalSec));
-    const d = Math.floor(totalSec / 86400);
-    const h = Math.floor((totalSec % 86400) / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    if (d > 0) return `${d}д ${h}ч ${m}м`;
-    if (h > 0) return `${h}ч ${m}м`;
-    if (m > 0) return `${m}м ${s}с`;
-    return `${s}с`;
+    const d = Math.floor(totalSec / SECONDS_IN_DAY);
+    const h = Math.floor((totalSec % SECONDS_IN_DAY) / SECONDS_IN_HOUR);
+    const m = Math.floor((totalSec % SECONDS_IN_HOUR) / SECONDS_IN_MINUTE);
+    const s = totalSec % SECONDS_IN_MINUTE;
+    if (d > 0) return `${d}${t('timeD')} ${h}${t('timeH')} ${m}${t('timeM')}`;
+    if (h > 0) return `${h}${t('timeH')} ${m}${t('timeM')}`;
+    if (m > 0) return `${m}${t('timeM')} ${s}${t('timeS')}`;
+    return `${s}${t('timeS')}`;
 }
 
 export function durStrShort(min: number): string {
     min = Math.max(0, Math.round(min));
     const h = Math.floor(min / 60);
     const mm = min % 60;
-    if (h === 0) return `${mm}м`;
-    if (mm === 0) return `${h}ч`;
-    return `${h}ч ${mm}м`;
+    if (h === 0) return `${mm}${t('timeM')}`;
+    if (mm === 0) return `${h}${t('timeH')}`;
+    return `${h}${t('timeH')} ${mm}${t('timeM')}`;
 }
 
 export function todayStr(): string {

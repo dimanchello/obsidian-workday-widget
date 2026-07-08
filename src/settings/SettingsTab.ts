@@ -189,7 +189,7 @@ export class WorkdaySettingTab extends PluginSettingTab {
             attr: { placeholder: t('myTimer') },
         });
         nameInput.value = timer.name || '';
-        nameInput.addEventListener('input', async () => {
+        nameInput.addEventListener('change', async () => {
             timer.name = nameInput.value.trim();
             await onSave();
         });

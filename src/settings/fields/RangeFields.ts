@@ -15,7 +15,7 @@ export function renderRangeFields(
         attr: { type: 'time' },
     });
     startInput.value = timer.startTime || '09:00';
-    startInput.addEventListener('input', async () => {
+    startInput.addEventListener('change', async () => {
         timer.startTime = startInput.value;
         await onSave();
     });
@@ -27,7 +27,7 @@ export function renderRangeFields(
         attr: { type: 'time' },
     });
     endInput.value = timer.endTime || '18:00';
-    endInput.addEventListener('input', async () => {
+    endInput.addEventListener('change', async () => {
         timer.endTime = endInput.value;
         await onSave();
     });

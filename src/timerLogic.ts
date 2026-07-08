@@ -96,7 +96,9 @@ export function calcCountdown(timer: TimerConfig, now: Date): CountdownTickResul
         };
     }
 
-    const target = new Date(timer.targetDatetime + ':00');
+    const targetStr =
+        timer.targetDatetime.length === 16 ? timer.targetDatetime + ':00' : timer.targetDatetime;
+    const target = new Date(targetStr);
     if (!isValidDate(target)) {
         return {
             status: 'bad-target',
@@ -112,7 +114,12 @@ export function calcCountdown(timer: TimerConfig, now: Date): CountdownTickResul
     }
 
     const hasStart = !!timer.startDatetime;
-    const start = hasStart ? new Date(timer.startDatetime + ':00') : null;
+    const startStr = timer.startDatetime
+        ? timer.startDatetime.length === 16
+            ? timer.startDatetime + ':00'
+            : timer.startDatetime
+        : null;
+    const start = startStr ? new Date(startStr) : null;
 
     if (start && !isValidDate(start)) {
         return {

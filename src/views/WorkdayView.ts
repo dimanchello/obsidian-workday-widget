@@ -40,7 +40,11 @@ export class WorkdayView extends ItemView {
 
     refresh(): void {
         this.stopTick();
-        this.buildUI();
+        if (!this.tabsEl || !this.panelsEl) {
+            this.buildUI();
+        } else {
+            this.rebuild();
+        }
     }
 
     private buildUI(): void {
@@ -243,7 +247,7 @@ export class WorkdayView extends ItemView {
 
         const track = wrap.createDiv({ cls: 'wd-bar-track' });
         const barEl = track.createDiv({ cls: 'wd-bar-fill' });
-        barEl.style.background = timer.color || '#7c6af7';
+        barEl.style.background = timer.color || 'var(--interactive-accent)';
 
         let passedEl: HTMLElement;
         let leftEl: HTMLElement;
@@ -251,13 +255,13 @@ export class WorkdayView extends ItemView {
 
         if (timer.type === 'range') {
             const stats = wrap.createDiv({ cls: 'wd-stats' });
-            passedEl = this.mkStat(stats, t('statPassed'), '#a6e3a1');
-            leftEl = this.mkStat(stats, t('statLeft'), '#f38ba8');
-            endEl = this.mkStat(stats, t('statEnd'), '#89b4fa');
+            passedEl = this.mkStat(stats, t('statPassed'), 'var(--text-success)');
+            leftEl = this.mkStat(stats, t('statLeft'), 'var(--text-error)');
+            endEl = this.mkStat(stats, t('statEnd'), 'var(--text-accent)');
         } else {
             const stats = wrap.createDiv({ cls: 'wd-stats wd-stats-2col' });
-            passedEl = this.mkStat(stats, t('statPassed'), '#a6e3a1');
-            leftEl = this.mkStat(stats, t('statLeft'), '#f38ba8');
+            passedEl = this.mkStat(stats, t('statPassed'), 'var(--text-success)');
+            leftEl = this.mkStat(stats, t('statLeft'), 'var(--text-error)');
         }
 
         const statusRow = wrap.createDiv({ cls: 'wd-status-row' });
@@ -322,6 +326,7 @@ export class WorkdayView extends ItemView {
     private startTick(): void {
         this.tick();
         this.interval = window.setInterval(() => this.tick(), 1000);
+        this.registerInterval(this.interval);
     }
 
     private stopTick(): void {
@@ -394,7 +399,12 @@ export class WorkdayView extends ItemView {
         }
 
         if (r.status === 'done') {
-            this.setStatus(els, t('statusDone'), '#a6e3a1', '#1e3a2f');
+            this.setStatus(
+                els,
+                t('statusDone'),
+                'var(--text-success)',
+                'var(--background-modifier-success)',
+            );
             if (timer.notifyEnd && !timer.notifiedEnd) {
                 timer.notifiedEnd = true;
                 void this.plugin.saveSettings();
@@ -403,7 +413,12 @@ export class WorkdayView extends ItemView {
             return;
         }
 
-        this.setStatus(els, t('statusRunning'), '#89b4fa', '#1e2a3a');
+        this.setStatus(
+            els,
+            t('statusRunning'),
+            'var(--text-accent)',
+            'var(--background-modifier-active-hover)',
+        );
         timer.notifiedEnd = false;
         if (timer.notifyStart && !timer.notifiedStart) {
             timer.notifiedStart = true;
@@ -430,7 +445,7 @@ export class WorkdayView extends ItemView {
         els.lblPct.textContent = r.pct > 0 ? `${r.pct.toFixed(1)}%` : '';
 
         if (r.status === 'no-target') {
-            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
+            if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
             this.setStatus(
                 els,
                 t('statusNoTarget'),
@@ -441,7 +456,7 @@ export class WorkdayView extends ItemView {
         }
 
         if (r.status === 'bad-target') {
-            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
+            if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
             this.setStatus(
                 els,
                 t('statusBadTarget'),
@@ -452,7 +467,7 @@ export class WorkdayView extends ItemView {
         }
 
         if (r.status === 'bad-start') {
-            if (els.deleteBtn) els.deleteBtn.style.display = 'none';
+            if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
             this.setStatus(
                 els,
                 t('statusBadStart'),
@@ -464,9 +479,14 @@ export class WorkdayView extends ItemView {
 
         if (r.isDone) {
             els.passedEl.textContent = r.totalSec ? durStr(r.totalSec) : '—';
-            els.leftEl.textContent = '0с';
+            els.leftEl.textContent = '0' + t('timeS');
             if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
-            this.setStatus(els, t('statusReached'), '#a6e3a1', '#1e3a2f');
+            this.setStatus(
+                els,
+                t('statusReached'),
+                'var(--text-success)',
+                'var(--background-modifier-success)',
+            );
             if (timer.notifyEnd && !timer.notifiedEnd) {
                 timer.notifiedEnd = true;
                 void this.plugin.saveSettings();
@@ -478,7 +498,12 @@ export class WorkdayView extends ItemView {
         if (els.deleteBtn) els.deleteBtn.style.display = 'none';
         els.passedEl.textContent = r.passedSec !== null ? durStr(r.passedSec) : '—';
         els.leftEl.textContent = durStr(r.leftSec);
-        this.setStatus(els, t('statusCountdown'), '#89b4fa', '#1e2a3a');
+        this.setStatus(
+            els,
+            t('statusCountdown'),
+            'var(--text-accent)',
+            'var(--background-modifier-active-hover)',
+        );
 
         timer.notifiedEnd = false;
 

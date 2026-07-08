@@ -19,7 +19,7 @@ export function renderCountdownFields(
         attr: { type: 'datetime-local' },
     });
     startInput.value = timer.startDatetime;
-    startInput.addEventListener('input', async () => {
+    startInput.addEventListener('change', async () => {
         timer.startDatetime = startInput.value;
         await onSave();
     });
@@ -35,7 +35,7 @@ export function renderCountdownFields(
         attr: { type: 'datetime-local' },
     });
     targetInput.value = timer.targetDatetime;
-    targetInput.addEventListener('input', async () => {
+    targetInput.addEventListener('change', async () => {
         timer.targetDatetime = targetInput.value;
         await onSave();
     });
