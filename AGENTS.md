@@ -24,23 +24,33 @@ npm run validate      # typecheck + lint + knip + format:check + test
 
 ```
 src/
-├── main.ts              # Точка входа, класс плагина
-├── types.ts             # TypeScript типы + PluginBridge
-├── constants.ts         # Константы и дефолтные значения
-├── utils.ts             # Чистые утилиты (покрываются тестами)
-├── utils.test.ts        # Тесты утилит
-├── timerLogic.ts        # Чистые функции расчёта таймеров
-├── timerLogic.test.ts   # Тесты расчёта таймеров
-├── migrations.ts        # Миграция данных
-├── migrations.test.ts   # Тесты миграции
-├── i18n.ts              # Интернационализация
-├── notifications.ts     # Системные уведомления (Notice + browser Notification)
+├── main.ts                     # Точка входа, класс плагина
+├── types.ts                    # TypeScript типы + PluginBridge
+├── constants.ts                # Константы и дефолтные значения
+├── utils.ts                    # Чистые утилиты (покрываются тестами)
+├── utils.test.ts               # Тесты утилит
+├── timerLogic.ts               # Фасад расчёта таймеров
+├── timerLogic.test.ts          # Тесты расчёта таймеров
+├── migrations.ts               # Миграция данных
+├── migrations.test.ts          # Тесты миграции
+├── i18n.ts                     # Интернационализация
+├── i18n.test.ts                # Тесты интернационализации
+├── notifications.ts            # Системные уведомления (Notice + Notification API)
+├── notifications.test.ts       # Тесты уведомлений
+├── integration.test.ts          # Интеграционные тесты жизненного цикла
+├── services/
+│   └── TimerEngine.ts          # Централизованный движок тиков и уведомлений
+├── strategies/
+│   ├── TimerStrategy.ts         # Интерфейс паттерна Strategy
+│   ├── RangeTimerStrategy.ts    # Стратегия диапазонного таймера
+│   ├── CountdownTimerStrategy.ts# Стратегия таймера обратного отсчёта
+│   └── TimerStrategyFactory.ts  # Фабрика стратегий
 ├── modals/
-│   └── ConfirmModal.ts  # Модалка подтверждения
+│   └── ConfirmModal.ts         # Модалка подтверждения
 ├── views/
-│   └── WorkdayView.ts   # Основной виджет (ItemView)
+│   └── WorkdayView.ts          # Основной виджет (ItemView)
 └── settings/
-    ├── SettingsTab.ts   # Вкладка настроек
+    ├── SettingsTab.ts          # Вкладка настроек
     └── fields/
         ├── RangeFields.ts
         └── CountdownFields.ts

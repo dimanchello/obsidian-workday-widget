@@ -210,9 +210,62 @@ describe('calcCountdown', () => {
         });
         const now = new Date(2026, 5, 1, 7, 0, 0);
         const r = calcCountdown(timer, now);
-        expect(r.status).toBe('running');
+        expect(r.status).toBe('before');
         expect(r.leftSec).toBe(2 * 3600);
         expect(r.passedSec).toBe(0);
         expect(r.isDone).toBe(false);
+    });
+
+    it('returns invalid-range when startDatetime is equal or after targetDatetime', () => {
+        const timer = makeTimer({
+            type: 'countdown',
+            targetDatetime: '2026-06-01T10:00',
+            startDatetime: '2026-06-01T12:00',
+        });
+        const now = new Date(2026, 5, 1, 9, 0, 0);
+        const r = calcCountdown(timer, now);
+        expect(r.status).toBe('invalid-range');
+    });
+
+    it('handles targetDatetime with seconds properly', () => {
+        const timer = makeTimer({
+            type: 'countdown',
+            targetDatetime: '2026-06-01T18:00:30',
+            startDatetime: '2026-06-01T18:00:00',
+        });
+        const now = new Date(2026, 5, 1, 18, 0, 15);
+        const r = calcCountdown(timer, now);
+        expect(r.status).toBe('running');
+        expect(r.leftSec).toBe(15);
+        expect(r.passedSec).toBe(15);
+        expect(r.pct).toBe(50);
+    });
+
+    it('handles exact match when now equals targetDatetime', () => {
+        const timer = makeTimer({
+            type: 'countdown',
+            targetDatetime: '2026-06-01T18:00',
+            startDatetime: '2026-06-01T09:00',
+        });
+        const now = new Date(2026, 5, 1, 18, 0, 0);
+        const r = calcCountdown(timer, now);
+        expect(r.status).toBe('done');
+        expect(r.isDone).toBe(true);
+        expect(r.pct).toBe(100);
+        expect(r.leftSec).toBe(0);
+    });
+
+    it('handles exact match when now equals startDatetime', () => {
+        const timer = makeTimer({
+            type: 'countdown',
+            targetDatetime: '2026-06-01T18:00',
+            startDatetime: '2026-06-01T09:00',
+        });
+        const now = new Date(2026, 5, 1, 9, 0, 0);
+        const r = calcCountdown(timer, now);
+        expect(r.status).toBe('running');
+        expect(r.isDone).toBe(false);
+        expect(r.passedSec).toBe(0);
+        expect(r.pct).toBe(0);
     });
 });

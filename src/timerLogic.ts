@@ -1,162 +1,22 @@
-import type { TimerConfig } from './types';
-import { toMin, isValidDate } from './utils';
+import type { CountdownStatus, RangeStatus, TimerConfig } from './types';
+import { TimerStrategyFactory } from './strategies/TimerStrategyFactory';
+import type {
+    CountdownCalculationResult,
+    RangeCalculationResult,
+} from './strategies/TimerStrategy';
 
-export type RangeStatus = 'invalid' | 'before' | 'running' | 'done';
+export type { RangeStatus, CountdownStatus };
 
-export interface RangeTickResult {
-    status: RangeStatus;
-    startM: number;
-    endM: number;
-    totalM: number;
-    pct: number;
-    passedM: number;
-    leftM: number;
-}
+export type RangeTickResult = RangeCalculationResult;
+export type CountdownTickResult = CountdownCalculationResult;
 
 export function calcRange(timer: TimerConfig, now: Date): RangeTickResult {
-    const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
-    const startM = toMin(timer.startTime);
-    const endM = toMin(timer.endTime);
-    const totalM = endM > startM ? endM - startM : 0;
-
-    if (totalM <= 0) {
-        return {
-            status: 'invalid',
-            startM,
-            endM,
-            totalM: 0,
-            pct: 0,
-            passedM: 0,
-            leftM: 0,
-        };
-    }
-
-    if (nowMin < startM) {
-        return {
-            status: 'before',
-            startM,
-            endM,
-            totalM,
-            pct: 0,
-            passedM: 0,
-            leftM: startM - nowMin,
-        };
-    }
-
-    if (nowMin >= endM) {
-        return {
-            status: 'done',
-            startM,
-            endM,
-            totalM,
-            pct: 100,
-            passedM: totalM,
-            leftM: 0,
-        };
-    }
-
-    const elapsed = nowMin - startM;
-    return {
-        status: 'running',
-        startM,
-        endM,
-        totalM,
-        pct: Math.min((elapsed / totalM) * 100, 100),
-        passedM: elapsed,
-        leftM: Math.max(0, totalM - elapsed),
-    };
-}
-
-export type CountdownStatus = 'no-target' | 'bad-target' | 'bad-start' | 'running' | 'done';
-
-export interface CountdownTickResult {
-    status: CountdownStatus;
-    leftSec: number;
-    totalSec: number | null;
-    passedSec: number | null;
-    pct: number;
-    isDone: boolean;
-    hasStart: boolean;
-    targetDate: Date | null;
-    startDate: Date | null;
+    return TimerStrategyFactory.getStrategy('range').calculate(timer, now) as RangeTickResult;
 }
 
 export function calcCountdown(timer: TimerConfig, now: Date): CountdownTickResult {
-    if (!timer.targetDatetime) {
-        return {
-            status: 'no-target',
-            leftSec: 0,
-            totalSec: null,
-            passedSec: null,
-            pct: 0,
-            isDone: false,
-            hasStart: !!timer.startDatetime,
-            targetDate: null,
-            startDate: null,
-        };
-    }
-
-    const targetStr =
-        timer.targetDatetime.length === 16 ? timer.targetDatetime + ':00' : timer.targetDatetime;
-    const target = new Date(targetStr);
-    if (!isValidDate(target)) {
-        return {
-            status: 'bad-target',
-            leftSec: 0,
-            totalSec: null,
-            passedSec: null,
-            pct: 0,
-            isDone: false,
-            hasStart: !!timer.startDatetime,
-            targetDate: null,
-            startDate: null,
-        };
-    }
-
-    const hasStart = !!timer.startDatetime;
-    const startStr = timer.startDatetime
-        ? timer.startDatetime.length === 16
-            ? timer.startDatetime + ':00'
-            : timer.startDatetime
-        : null;
-    const start = startStr ? new Date(startStr) : null;
-
-    if (start && !isValidDate(start)) {
-        return {
-            status: 'bad-start',
-            leftSec: 0,
-            totalSec: null,
-            passedSec: null,
-            pct: 0,
-            isDone: false,
-            hasStart,
-            targetDate: null,
-            startDate: null,
-        };
-    }
-
-    const leftToEndSec = Math.max(0, (target.getTime() - now.getTime()) / 1000);
-    const totalSec = start ? Math.max(0, (target.getTime() - start.getTime()) / 1000) : null;
-    const passedSec = totalSec !== null ? Math.max(0, totalSec - leftToEndSec) : null;
-    const leftSec =
-        start && now < start ? Math.max(0, (start.getTime() - now.getTime()) / 1000) : leftToEndSec;
-    const pct =
-        totalSec !== null && totalSec > 0 && passedSec !== null
-            ? Math.min((passedSec / totalSec) * 100, 100)
-            : leftToEndSec <= 0
-              ? 100
-              : 0;
-    const isDone = leftToEndSec <= 0;
-
-    return {
-        status: isDone ? 'done' : 'running',
-        leftSec,
-        totalSec,
-        passedSec,
-        pct,
-        isDone,
-        hasStart,
-        targetDate: target,
-        startDate: start,
-    };
+    return TimerStrategyFactory.getStrategy('countdown').calculate(
+        timer,
+        now,
+    ) as CountdownTickResult;
 }

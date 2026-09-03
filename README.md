@@ -128,7 +128,8 @@ your-vault/
 
 ### Изменить порядок таймеров
 
-Перетащи вкладку на новое место — порядок сохранится автоматически.
+- **На десктопе:** перетащи вкладку на новое место (Drag & Drop).
+- **В настройках:** используй кнопки со стрелками **↑** и **↓** для быстрого перемещения таймеров (подходит для мобильных устройств).
 
 ### Удалить завершённый таймер (Обратный отсчёт)
 
@@ -176,10 +177,13 @@ npm run lint:fix
 # Форматирование кода
 npm run format
 
-# Запуск unit тестов
+# Запуск unit и интеграционных тестов
 npm run test
 
-# Полная валидация (typecheck + lint + format + test)
+# Поиск неиспользуемого кода
+npm run knip
+
+# Полная валидация (typecheck + lint + knip + format + test)
 npm run validate
 ```
 
@@ -191,9 +195,24 @@ obsidian-workday-widget/
 │   ├── main.ts                       # Точка входа, класс плагина
 │   ├── types.ts                      # TypeScript типы и интерфейсы
 │   ├── constants.ts                  # Константы и значения по умолчанию
-│   ├── utils.ts                      # Вспомогательные функции (покрыты тестами)
-│   ├── utils.test.ts                 # Unit тесты для utils.ts
-│   ├── notifications.ts              # Системные уведомления
+│   ├── i18n.ts                       # Интернационализация (ru/en)
+│   ├── i18n.test.ts                  # Unit-тесты для локализации
+│   ├── utils.ts                      # Чистые утилиты (покрыты тестами)
+│   ├── utils.test.ts                 # Unit-тесты для utils.ts
+│   ├── timerLogic.ts                 # Фасад расчёта таймеров
+│   ├── timerLogic.test.ts            # Unit-тесты расчёта таймеров
+│   ├── migrations.ts                 # Миграции структуры данных
+│   ├── migrations.test.ts            # Тесты миграций
+│   ├── notifications.ts              # Системные уведомления (Notice + Notification API)
+│   ├── notifications.test.ts         # Unit-тесты уведомлений
+│   ├── integration.test.ts           # Интеграционные тесты жизненного цикла
+│   ├── services/
+│   │   └── TimerEngine.ts            # Централизованный движок тиков и уведомлений
+│   ├── strategies/
+│   │   ├── TimerStrategy.ts          # Интерфейс паттерна Strategy
+│   │   ├── RangeTimerStrategy.ts     # Стратегия диапазонного таймера
+│   │   ├── CountdownTimerStrategy.ts # Стратегия таймера обратного отсчёта
+│   │   └── TimerStrategyFactory.ts   # Фабрика стратегий
 │   ├── modals/
 │   │   └── ConfirmModal.ts           # Модалка подтверждения удаления
 │   ├── views/
@@ -211,9 +230,7 @@ obsidian-workday-widget/
 ├── styles.css                        # Стили виджета (исходник)
 ├── esbuild.config.mjs                # Конфигурация сборки
 ├── tsconfig.json                     # Конфигурация TypeScript
-├── vitest.config.ts                  # Конфигурация Vitest
 ├── eslint.config.js                  # Конфигурация ESLint
-├── .prettierrc                       # Конфигурация Prettier
 ├── package.json
 └── AGENTS.md                         # Инструкция для AI ассистентов
 ```

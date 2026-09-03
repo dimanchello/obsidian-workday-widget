@@ -1,8 +1,8 @@
 import type { App, Plugin } from 'obsidian';
 import { PluginSettingTab } from 'obsidian';
-import { EMOJIS, DEFAULT_TIMER } from '../constants';
+import { DEFAULT_TIMER, EMOJIS } from '../constants';
 import type { PluginBridge, TimerConfig } from '../types';
-import { uid, todayStr } from '../utils';
+import { adjustIndexOnDelete, adjustIndexOnMove, debounce, todayStr, uid } from '../utils';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { renderRangeFields } from './fields/RangeFields';
 import { renderCountdownFields } from './fields/CountdownFields';
@@ -69,6 +69,10 @@ export class WorkdaySettingTab extends PluginSettingTab {
             this.plugin.refreshView();
         };
 
+        const debouncedSave = debounce(async () => {
+            await onSave();
+        }, 300);
+
         const row1 = card.createDiv({ cls: 'wd-card-row1' });
 
         const emojiField = row1.createDiv({ cls: 'wd-form-field' });
@@ -127,9 +131,9 @@ export class WorkdaySettingTab extends PluginSettingTab {
         const colorPicker = colorWrap.createEl('input', {
             attr: { type: 'color', value: timer.color || '#7c6af7' },
         });
-        colorPicker.addEventListener('input', async () => {
+        colorPicker.addEventListener('input', () => {
             timer.color = colorPicker.value;
-            await onSave();
+            debouncedSave();
         });
 
         const notifyStartField = row1.createDiv({ cls: 'wd-form-field' });
@@ -161,6 +165,46 @@ export class WorkdaySettingTab extends PluginSettingTab {
         });
 
         if (this.plugin.settings.timers.length > 1) {
+            const moveUpBtn = row1.createEl('button', {
+                cls: 'wd-move-btn',
+                text: '↑',
+                attr: { title: t('moveUp') },
+            });
+            if (idx === 0) moveUpBtn.disabled = true;
+            moveUpBtn.addEventListener('click', async () => {
+                const arr = this.plugin.settings.timers;
+                const moved = arr.splice(idx, 1)[0];
+                arr.splice(idx - 1, 0, moved);
+                this.plugin.settings.activeIndex = adjustIndexOnMove(
+                    this.plugin.settings.activeIndex,
+                    idx,
+                    idx - 1,
+                );
+                await this.plugin.saveSettings();
+                this.plugin.refreshView();
+                this.display();
+            });
+
+            const moveDownBtn = row1.createEl('button', {
+                cls: 'wd-move-btn',
+                text: '↓',
+                attr: { title: t('moveDown') },
+            });
+            if (idx === this.plugin.settings.timers.length - 1) moveDownBtn.disabled = true;
+            moveDownBtn.addEventListener('click', async () => {
+                const arr = this.plugin.settings.timers;
+                const moved = arr.splice(idx, 1)[0];
+                arr.splice(idx + 1, 0, moved);
+                this.plugin.settings.activeIndex = adjustIndexOnMove(
+                    this.plugin.settings.activeIndex,
+                    idx,
+                    idx + 1,
+                );
+                await this.plugin.saveSettings();
+                this.plugin.refreshView();
+                this.display();
+            });
+
             const delBtn = row1.createEl('button', {
                 cls: 'wd-del-btn',
                 text: '✕',
@@ -171,6 +215,11 @@ export class WorkdaySettingTab extends PluginSettingTab {
                     this.plugin.app,
                     t('confirmDelete', { name: timer.name || timer.emoji }),
                     async () => {
+                        this.plugin.settings.activeIndex = adjustIndexOnDelete(
+                            this.plugin.settings.activeIndex,
+                            idx,
+                            this.plugin.settings.timers.length,
+                        );
                         this.plugin.settings.timers.splice(idx, 1);
                         await this.plugin.saveSettings();
                         this.plugin.refreshView();
@@ -189,9 +238,9 @@ export class WorkdaySettingTab extends PluginSettingTab {
             attr: { placeholder: t('myTimer') },
         });
         nameInput.value = timer.name || '';
-        nameInput.addEventListener('change', async () => {
+        nameInput.addEventListener('input', () => {
             timer.name = nameInput.value.trim();
-            await onSave();
+            debouncedSave();
         });
 
         const typeField = row2.createDiv({ cls: 'wd-form-field' });
@@ -214,10 +263,15 @@ export class WorkdaySettingTab extends PluginSettingTab {
             this.display();
         });
 
+        const asyncDebouncedSave = async () => {
+            debouncedSave();
+            await Promise.resolve();
+        };
+
         if (timer.type === 'range') {
-            renderRangeFields(card, timer, onSave);
+            renderRangeFields(card, timer, asyncDebouncedSave);
         } else {
-            renderCountdownFields(card, timer, onSave);
+            renderCountdownFields(card, timer, asyncDebouncedSave);
         }
     }
 }

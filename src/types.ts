@@ -20,6 +20,23 @@ export interface TimerConfig {
     startDatetime: string; // YYYY-MM-DDTHH:mm (datetime-local)
 }
 
+export type RangeStatus = 'invalid' | 'before' | 'running' | 'done';
+export type CountdownStatus =
+    | 'no-target'
+    | 'bad-target'
+    | 'bad-start'
+    | 'invalid-range'
+    | 'before'
+    | 'running'
+    | 'done';
+
+export interface ITimerEngine {
+    subscribe(listener: (now: Date) => void): () => void;
+    tick(now?: Date): void;
+    start(): void;
+    stop(): void;
+}
+
 export type DisplayMode = 'tabs' | 'list';
 
 export interface PluginBridge {
@@ -27,6 +44,7 @@ export interface PluginBridge {
     saveSettings(): Promise<void>;
     refreshView(): void;
     app: App;
+    timerEngine?: ITimerEngine;
 }
 
 export interface PluginSettings {

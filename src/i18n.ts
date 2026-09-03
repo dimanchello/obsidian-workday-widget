@@ -1,4 +1,4 @@
-type Lang = 'ru' | 'en';
+export type Lang = 'ru' | 'en';
 
 function getLang(): Lang {
     if (typeof document === 'undefined') return 'ru';
@@ -30,6 +30,10 @@ const dict: Record<Lang, Record<string, string>> = {
         statPassed: 'Прошло',
         statLeft: 'Осталось',
         statEnd: 'Конец',
+        unitDay: 'д',
+        unitHour: 'ч',
+        unitMinute: 'м',
+        unitSecond: 'с',
         timeD: 'д',
         timeH: 'ч',
         timeM: 'м',
@@ -40,9 +44,12 @@ const dict: Record<Lang, Record<string, string>> = {
         statusCountdown: '⏳ Идёт отсчёт',
         statusReached: '🎉 Достигнуто!',
         statusNoRange: '⚠️ Укажи корректный диапазон',
+        statusInvalidRange: '⚠️ Дата начала позже даты цели',
         statusNoTarget: '⚠️ Укажи дату цели',
         statusBadTarget: '⚠️ Некорректная дата цели',
         statusBadStart: '⚠️ Некорректная дата начала',
+        moveUp: 'Переместить вверх',
+        moveDown: 'Переместить вниз',
         timerRangeDefault: 'Диапазонный таймер',
         timerCountdownDefault: 'Обратный отсчёт',
         tabTitleRange: '{name} ({start} – {end})',
@@ -92,6 +99,10 @@ const dict: Record<Lang, Record<string, string>> = {
         statPassed: 'Passed',
         statLeft: 'Left',
         statEnd: 'End',
+        unitDay: 'd',
+        unitHour: 'h',
+        unitMinute: 'm',
+        unitSecond: 's',
         timeD: 'd',
         timeH: 'h',
         timeM: 'm',
@@ -102,9 +113,12 @@ const dict: Record<Lang, Record<string, string>> = {
         statusCountdown: '⏳ Counting down',
         statusReached: '🎉 Reached!',
         statusNoRange: '⚠️ Set a valid range',
+        statusInvalidRange: '⚠️ Start date is after target date',
         statusNoTarget: '⚠️ Set a target date',
         statusBadTarget: '⚠️ Invalid target date',
         statusBadStart: '⚠️ Invalid start date',
+        moveUp: 'Move up',
+        moveDown: 'Move down',
         timerRangeDefault: 'Range timer',
         timerCountdownDefault: 'Countdown timer',
         tabTitleRange: '{name} ({start} – {end})',
@@ -133,12 +147,11 @@ const dict: Record<Lang, Record<string, string>> = {
     },
 };
 
-export function t(key: string, ...args: Record<string, string>[]): string {
-    const lang = getLang();
-    const text = dict[lang][key] ?? dict.ru[key] ?? key;
-    if (args.length > 0) {
-        const params = args[0];
-        return text.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `{${k}}`);
+export function t(key: string, params?: Record<string, string>, lang?: Lang): string {
+    const currentLang = lang ?? getLang();
+    const text = dict[currentLang]?.[key] ?? dict.ru[key] ?? key;
+    if (params) {
+        return text.replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? `{${k}}`);
     }
     return text;
 }

@@ -2,19 +2,18 @@ import type { WorkspaceLeaf } from 'obsidian';
 import { ItemView } from 'obsidian';
 import { VIEW_TYPE } from '../constants';
 import type { Panel, PanelElements, PluginBridge, TimerConfig } from '../types';
-import { fromMin, durStr, durStrShort } from '../utils';
-import { calcRange, calcCountdown } from '../timerLogic';
-import { sendNotification } from '../notifications';
+import { adjustIndexOnDelete, adjustIndexOnMove } from '../utils';
+import { TimerStrategyFactory } from '../strategies/TimerStrategyFactory';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { t } from '../i18n';
 
 export class WorkdayView extends ItemView {
     private plugin: PluginBridge;
-    private interval: number | null = null;
+    private unsubscribeTimer: (() => void) | null = null;
     private activeIndex = 0;
     private panels: Record<number, Panel> = {};
-    private tabsEl!: HTMLElement;
-    private panelsEl!: HTMLElement;
+    private tabsEl: HTMLElement | null = null;
+    private panelsEl: HTMLElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: PluginBridge) {
         super(leaf);
@@ -40,11 +39,7 @@ export class WorkdayView extends ItemView {
 
     refresh(): void {
         this.stopTick();
-        if (!this.tabsEl || !this.panelsEl) {
-            this.buildUI();
-        } else {
-            this.rebuild();
-        }
+        this.buildUI();
     }
 
     private buildUI(): void {
@@ -59,6 +54,8 @@ export class WorkdayView extends ItemView {
                 text: t('noTimers'),
                 attr: { style: 'color:var(--text-muted);font-size:13px;' },
             });
+            this.tabsEl = null;
+            this.panelsEl = null;
             return;
         }
 
@@ -82,6 +79,11 @@ export class WorkdayView extends ItemView {
         this.stopTick();
 
         const { timers, displayMode } = this.plugin.settings;
+        if (!timers || timers.length === 0 || !this.tabsEl || !this.panelsEl) {
+            this.buildUI();
+            return;
+        }
+
         if (this.activeIndex >= timers.length) this.activeIndex = 0;
 
         if (displayMode === 'list') {
@@ -95,6 +97,7 @@ export class WorkdayView extends ItemView {
     }
 
     private buildTabs(timers: TimerConfig[]): void {
+        if (!this.tabsEl) return;
         this.tabsEl.empty();
 
         if (timers.length <= 1) {
@@ -105,13 +108,14 @@ export class WorkdayView extends ItemView {
 
         let dragSrcIdx: number | null = null;
 
-        timers.forEach((t, i) => {
+        timers.forEach((timer, i) => {
+            if (!this.tabsEl) return;
             const tab = this.tabsEl.createDiv({
                 cls: 'wd-tab' + (i === this.activeIndex ? ' active' : ''),
             });
-            tab.textContent = t.emoji || '⏱️';
+            tab.textContent = timer.emoji || '⏱️';
             tab.draggable = true;
-            tab.title = this.makeTabTitle(t);
+            tab.title = this.makeTabTitle(timer);
 
             if (i === this.activeIndex) {
                 setTimeout(() => tab.scrollIntoView({ block: 'nearest', inline: 'center' }), 50);
@@ -129,9 +133,11 @@ export class WorkdayView extends ItemView {
 
             tab.addEventListener('dragend', () => {
                 tab.removeClass('wd-tab-dragging');
-                this.tabsEl
-                    .querySelectorAll('.wd-tab')
-                    .forEach((el) => el.removeClass('wd-tab-drag-over'));
+                if (this.tabsEl) {
+                    this.tabsEl
+                        .querySelectorAll('.wd-tab')
+                        .forEach((el) => el.removeClass('wd-tab-drag-over'));
+                }
                 dragSrcIdx = null;
             });
 
@@ -141,9 +147,11 @@ export class WorkdayView extends ItemView {
                 e.preventDefault();
                 dt.dropEffect = 'move';
                 if (dragSrcIdx === null || dragSrcIdx === i) return;
-                this.tabsEl
-                    .querySelectorAll('.wd-tab')
-                    .forEach((el) => el.removeClass('wd-tab-drag-over'));
+                if (this.tabsEl) {
+                    this.tabsEl
+                        .querySelectorAll('.wd-tab')
+                        .forEach((el) => el.removeClass('wd-tab-drag-over'));
+                }
                 tab.addClass('wd-tab-drag-over');
             });
 
@@ -154,11 +162,13 @@ export class WorkdayView extends ItemView {
                 tab.removeClass('wd-tab-drag-over');
                 if (dragSrcIdx === null || dragSrcIdx === i) return;
 
+                const fromIdx = dragSrcIdx;
+                const toIdx = i;
                 const arr = this.plugin.settings.timers;
-                const moved = arr.splice(dragSrcIdx, 1)[0];
-                arr.splice(i, 0, moved);
+                const moved = arr.splice(fromIdx, 1)[0];
+                arr.splice(toIdx, 0, moved);
 
-                this.adjustActiveIndex(dragSrcIdx, i);
+                this.activeIndex = adjustIndexOnMove(this.activeIndex, fromIdx, toIdx);
                 dragSrcIdx = null;
 
                 this.plugin.settings.activeIndex = this.activeIndex;
@@ -186,7 +196,7 @@ export class WorkdayView extends ItemView {
     }
 
     private switchTab(i: number): void {
-        if (i === this.activeIndex) return;
+        if (i === this.activeIndex || !this.tabsEl) return;
 
         if (this.panels[this.activeIndex]) {
             this.panels[this.activeIndex].wrap.style.display = 'none';
@@ -203,26 +213,18 @@ export class WorkdayView extends ItemView {
         this.plugin.settings.activeIndex = i;
         void this.plugin.saveSettings();
 
-        this.tick();
-    }
-
-    private adjustActiveIndex(from: number, to: number): void {
-        if (this.activeIndex === from) {
-            this.activeIndex = to;
-        } else if (from < this.activeIndex && to >= this.activeIndex) {
-            this.activeIndex--;
-        } else if (from > this.activeIndex && to <= this.activeIndex) {
-            this.activeIndex++;
-        }
+        this.tick(new Date());
     }
 
     private buildPanels(timers: TimerConfig[]): void {
+        if (!this.panelsEl) return;
         this.panelsEl.empty();
         this.panels = {};
 
         const isList = this.plugin.settings.displayMode === 'list';
 
         timers.forEach((timer, idx) => {
+            if (!this.panelsEl) return;
             const wrap = this.panelsEl.createDiv();
             wrap.style.display = !isList && idx !== this.activeIndex ? 'none' : 'flex';
             wrap.style.flexDirection = 'column';
@@ -247,22 +249,10 @@ export class WorkdayView extends ItemView {
 
         const track = wrap.createDiv({ cls: 'wd-bar-track' });
         const barEl = track.createDiv({ cls: 'wd-bar-fill' });
-        barEl.style.background = timer.color || 'var(--interactive-accent)';
+        barEl.style.background = timer.color || '#7c6af7';
 
-        let passedEl: HTMLElement;
-        let leftEl: HTMLElement;
-        let endEl: HTMLElement | undefined;
-
-        if (timer.type === 'range') {
-            const stats = wrap.createDiv({ cls: 'wd-stats' });
-            passedEl = this.mkStat(stats, t('statPassed'), 'var(--text-success)');
-            leftEl = this.mkStat(stats, t('statLeft'), 'var(--text-error)');
-            endEl = this.mkStat(stats, t('statEnd'), 'var(--text-accent)');
-        } else {
-            const stats = wrap.createDiv({ cls: 'wd-stats wd-stats-2col' });
-            passedEl = this.mkStat(stats, t('statPassed'), 'var(--text-success)');
-            leftEl = this.mkStat(stats, t('statLeft'), 'var(--text-error)');
-        }
+        const strategy = TimerStrategyFactory.getStrategy(timer.type);
+        const stats = strategy.renderStats(wrap, (p, label, color) => this.mkStat(p, label, color));
 
         const statusRow = wrap.createDiv({ cls: 'wd-status-row' });
         const statusEl = statusRow.createDiv({ cls: 'wd-status' });
@@ -282,9 +272,9 @@ export class WorkdayView extends ItemView {
             lblPct,
             lblEnd,
             barEl,
-            passedEl,
-            leftEl,
-            endEl,
+            passedEl: stats.passedEl,
+            leftEl: stats.leftEl,
+            endEl: stats.endEl,
             statusEl,
             deleteBtn,
         };
@@ -312,10 +302,12 @@ export class WorkdayView extends ItemView {
             async () => {
                 const idx = this.plugin.settings.timers.findIndex((t) => t.id === timer.id);
                 if (idx === -1) return;
+                this.activeIndex = adjustIndexOnDelete(
+                    this.activeIndex,
+                    idx,
+                    this.plugin.settings.timers.length,
+                );
                 this.plugin.settings.timers.splice(idx, 1);
-                if (this.activeIndex >= this.plugin.settings.timers.length) {
-                    this.activeIndex = Math.max(0, this.plugin.settings.timers.length - 1);
-                }
                 this.plugin.settings.activeIndex = this.activeIndex;
                 await this.plugin.saveSettings();
                 this.refresh();
@@ -324,23 +316,23 @@ export class WorkdayView extends ItemView {
     }
 
     private startTick(): void {
-        this.tick();
-        this.interval = window.setInterval(() => this.tick(), 1000);
-        this.registerInterval(this.interval);
-    }
-
-    private stopTick(): void {
-        if (this.interval !== null) {
-            clearInterval(this.interval);
-            this.interval = null;
+        this.tick(new Date());
+        if (this.plugin.timerEngine) {
+            this.unsubscribeTimer = this.plugin.timerEngine.subscribe((now) => this.tick(now));
         }
     }
 
-    private tick(): void {
+    private stopTick(): void {
+        if (this.unsubscribeTimer !== null) {
+            this.unsubscribeTimer();
+            this.unsubscribeTimer = null;
+        }
+    }
+
+    private tick(now: Date = new Date()): void {
         const { timers } = this.plugin.settings;
         if (!timers) return;
 
-        const now = new Date();
         const nowStr = now.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
@@ -353,175 +345,9 @@ export class WorkdayView extends ItemView {
             const { els } = p;
             if (els.clockEl) els.clockEl.textContent = nowStr;
 
-            if (timer.type === 'range') {
-                this.tickRange(timer, now, els);
-            } else {
-                this.tickCountdown(timer, now, els);
-            }
+            const strategy = TimerStrategyFactory.getStrategy(timer.type);
+            const result = strategy.calculate(timer, now);
+            strategy.updateUI(timer, result, els);
         });
-    }
-
-    private tickRange(timer: TimerConfig, now: Date, els: PanelElements): void {
-        const r = calcRange(timer, now);
-
-        els.lblStart.textContent = fromMin(r.startM);
-        els.lblEnd.textContent = fromMin(r.endM);
-        if (els.endEl) els.endEl.textContent = fromMin(r.endM);
-        els.barEl.style.width = `${r.pct.toFixed(2)}%`;
-        els.lblPct.textContent = `${r.pct.toFixed(1)}%`;
-        els.passedEl.textContent = durStrShort(r.passedM);
-        els.leftEl.textContent = durStrShort(r.leftM);
-
-        if (r.status === 'invalid') {
-            this.setStatus(
-                els,
-                t('statusNoRange'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            return;
-        }
-
-        if (r.status === 'before') {
-            const hadFlags = timer.notifiedStart || timer.notifiedEnd;
-            timer.notifiedStart = false;
-            timer.notifiedEnd = false;
-            if (hadFlags) {
-                void this.plugin.saveSettings();
-            }
-            this.setStatus(
-                els,
-                t('statusBefore'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            return;
-        }
-
-        if (r.status === 'done') {
-            this.setStatus(
-                els,
-                t('statusDone'),
-                'var(--text-success)',
-                'var(--background-modifier-success)',
-            );
-            if (timer.notifyEnd && !timer.notifiedEnd) {
-                timer.notifiedEnd = true;
-                void this.plugin.saveSettings();
-                sendNotification(timer, 'end');
-            }
-            return;
-        }
-
-        this.setStatus(
-            els,
-            t('statusRunning'),
-            'var(--text-accent)',
-            'var(--background-modifier-active-hover)',
-        );
-        timer.notifiedEnd = false;
-        if (timer.notifyStart && !timer.notifiedStart) {
-            timer.notifiedStart = true;
-            void this.plugin.saveSettings();
-            sendNotification(timer, 'start');
-        }
-    }
-
-    private tickCountdown(timer: TimerConfig, now: Date, els: PanelElements): void {
-        const r = calcCountdown(timer, now);
-
-        const fmt = (d: Date) =>
-            d.toLocaleDateString([], {
-                day: '2-digit',
-                month: '2-digit',
-                year: '2-digit',
-            });
-
-        els.lblStart.textContent =
-            r.hasStart && r.startDate ? fmt(r.startDate) : t('countdownNoStart');
-        els.lblEnd.textContent = r.targetDate ? fmt(r.targetDate) : '—';
-
-        els.barEl.style.width = `${r.pct.toFixed(2)}%`;
-        els.lblPct.textContent = r.pct > 0 ? `${r.pct.toFixed(1)}%` : '';
-
-        if (r.status === 'no-target') {
-            if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
-            this.setStatus(
-                els,
-                t('statusNoTarget'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            return;
-        }
-
-        if (r.status === 'bad-target') {
-            if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
-            this.setStatus(
-                els,
-                t('statusBadTarget'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            return;
-        }
-
-        if (r.status === 'bad-start') {
-            if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
-            this.setStatus(
-                els,
-                t('statusBadStart'),
-                'var(--text-muted)',
-                'var(--background-secondary)',
-            );
-            return;
-        }
-
-        if (r.isDone) {
-            els.passedEl.textContent = r.totalSec ? durStr(r.totalSec) : '—';
-            els.leftEl.textContent = '0' + t('timeS');
-            if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
-            this.setStatus(
-                els,
-                t('statusReached'),
-                'var(--text-success)',
-                'var(--background-modifier-success)',
-            );
-            if (timer.notifyEnd && !timer.notifiedEnd) {
-                timer.notifiedEnd = true;
-                void this.plugin.saveSettings();
-                sendNotification(timer, 'end');
-            }
-            return;
-        }
-
-        if (els.deleteBtn) els.deleteBtn.style.display = 'none';
-        els.passedEl.textContent = r.passedSec !== null ? durStr(r.passedSec) : '—';
-        els.leftEl.textContent = durStr(r.leftSec);
-        this.setStatus(
-            els,
-            t('statusCountdown'),
-            'var(--text-accent)',
-            'var(--background-modifier-active-hover)',
-        );
-
-        timer.notifiedEnd = false;
-
-        if (r.startDate && now >= r.startDate) {
-            if (timer.notifyStart && !timer.notifiedStart) {
-                timer.notifiedStart = true;
-                void this.plugin.saveSettings();
-                sendNotification(timer, 'start');
-            }
-        } else if (timer.notifiedStart) {
-            timer.notifiedStart = false;
-            void this.plugin.saveSettings();
-        }
-    }
-
-    private setStatus(els: PanelElements, text: string, color: string, bg: string): void {
-        els.statusEl.textContent = text;
-        els.statusEl.style.color = color;
-        els.statusEl.style.background = bg;
     }
 }

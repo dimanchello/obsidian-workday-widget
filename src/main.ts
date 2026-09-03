@@ -1,16 +1,21 @@
 import { Plugin } from 'obsidian';
-import { VIEW_TYPE, DEFAULT_SETTINGS } from './constants';
+import { DEFAULT_SETTINGS, DEFAULT_TIMER, VIEW_TYPE } from './constants';
 import type { PluginSettings } from './types';
 import { migrateSettings } from './migrations';
 import { WorkdayView } from './views/WorkdayView';
 import { WorkdaySettingTab } from './settings/SettingsTab';
+import { TimerEngine } from './services/TimerEngine';
 import { t } from './i18n';
 
 export default class WorkdayPlugin extends Plugin {
     settings!: PluginSettings;
+    timerEngine!: TimerEngine;
 
     async onload(): Promise<void> {
         await this.loadSettings();
+
+        this.timerEngine = new TimerEngine(this);
+        this.timerEngine.start();
 
         this.registerView(VIEW_TYPE, (leaf) => new WorkdayView(leaf, this));
 
@@ -20,6 +25,9 @@ export default class WorkdayPlugin extends Plugin {
     }
 
     async onunload(): Promise<void> {
+        if (this.timerEngine) {
+            this.timerEngine.stop();
+        }
         this.app.workspace.detachLeavesOfType(VIEW_TYPE);
     }
 
@@ -51,6 +59,11 @@ export default class WorkdayPlugin extends Plugin {
         if (!this.settings.timers || this.settings.timers.length === 0) {
             this.settings.timers = DEFAULT_SETTINGS.timers;
         }
+
+        this.settings.timers = this.settings.timers.map((t) => ({
+            ...DEFAULT_TIMER,
+            ...t,
+        }));
 
         migrateSettings(this.settings.timers);
     }

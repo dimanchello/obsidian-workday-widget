@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { toMin, fromMin, durStr, durStrShort, todayStr, uid, isValidDate } from './utils';
+import {
+    toMin,
+    fromMin,
+    durStr,
+    durStrShort,
+    todayStr,
+    uid,
+    isValidDate,
+    parseDatetime,
+    adjustIndexOnDelete,
+    adjustIndexOnMove,
+    debounce,
+} from './utils';
 
 describe('toMin', () => {
     it('converts valid time string to minutes', () => {
@@ -143,5 +155,122 @@ describe('isValidDate', () => {
         expect(isValidDate(undefined as unknown as Date)).toBe(false);
         expect(isValidDate('2025-01-01' as unknown as Date)).toBe(false);
         expect(isValidDate(12345 as unknown as Date)).toBe(false);
+    });
+});
+
+describe('durStr with locales', () => {
+    it('formats duration with english units', () => {
+        expect(durStr(0, 'en')).toBe('0s');
+        expect(durStr(45, 'en')).toBe('45s');
+        expect(durStr(125, 'en')).toBe('2m 5s');
+        expect(durStr(3661, 'en')).toBe('1h 1m');
+        expect(durStr(90061, 'en')).toBe('1d 1h 1m');
+    });
+
+    it('formats short duration with english units', () => {
+        expect(durStrShort(0, 'en')).toBe('0m');
+        expect(durStrShort(45, 'en')).toBe('45m');
+        expect(durStrShort(60, 'en')).toBe('1h');
+        expect(durStrShort(90, 'en')).toBe('1h 30m');
+    });
+});
+
+describe('parseDatetime', () => {
+    it('parses YYYY-MM-DDTHH:mm format by appending :00', () => {
+        const d = parseDatetime('2026-06-01T15:30');
+        expect(d).not.toBeNull();
+        expect(d?.getFullYear()).toBe(2026);
+        expect(d?.getMonth()).toBe(5);
+        expect(d?.getDate()).toBe(1);
+        expect(d?.getHours()).toBe(15);
+        expect(d?.getMinutes()).toBe(30);
+        expect(d?.getSeconds()).toBe(0);
+    });
+
+    it('parses YYYY-MM-DDTHH:mm:ss format directly without double appending', () => {
+        const d = parseDatetime('2026-06-01T15:30:45');
+        expect(d).not.toBeNull();
+        expect(d?.getSeconds()).toBe(45);
+    });
+
+    it('returns null for empty or invalid strings', () => {
+        expect(parseDatetime('')).toBeNull();
+        expect(parseDatetime('   ')).toBeNull();
+        expect(parseDatetime('invalid-date')).toBeNull();
+        expect(parseDatetime('2026-99-99T99:99')).toBeNull();
+    });
+});
+
+describe('adjustIndexOnDelete', () => {
+    it('returns 0 when totalCount <= 1', () => {
+        expect(adjustIndexOnDelete(0, 0, 1)).toBe(0);
+        expect(adjustIndexOnDelete(0, 0, 0)).toBe(0);
+    });
+
+    it('decrements activeIndex when deleted index is before current active', () => {
+        expect(adjustIndexOnDelete(2, 0, 4)).toBe(1);
+        expect(adjustIndexOnDelete(2, 1, 4)).toBe(1);
+    });
+
+    it('clamps activeIndex when deleted index is the current active', () => {
+        expect(adjustIndexOnDelete(2, 2, 4)).toBe(2);
+        expect(adjustIndexOnDelete(3, 3, 4)).toBe(2);
+    });
+
+    it('keeps activeIndex unchanged when deleted index is after current active', () => {
+        expect(adjustIndexOnDelete(1, 2, 4)).toBe(1);
+        expect(adjustIndexOnDelete(1, 3, 4)).toBe(1);
+    });
+});
+
+describe('adjustIndexOnMove', () => {
+    it('moves to new position when moving active item', () => {
+        expect(adjustIndexOnMove(1, 1, 3)).toBe(3);
+        expect(adjustIndexOnMove(2, 2, 0)).toBe(0);
+    });
+
+    it('decrements activeIndex when item before active moves to or after active', () => {
+        expect(adjustIndexOnMove(2, 0, 2)).toBe(1);
+        expect(adjustIndexOnMove(2, 0, 3)).toBe(1);
+    });
+
+    it('increments activeIndex when item after active moves to or before active', () => {
+        expect(adjustIndexOnMove(1, 3, 0)).toBe(2);
+        expect(adjustIndexOnMove(1, 3, 1)).toBe(2);
+    });
+
+    it('leaves activeIndex unchanged when move does not cross active index', () => {
+        expect(adjustIndexOnMove(2, 0, 1)).toBe(2);
+        expect(adjustIndexOnMove(1, 3, 4)).toBe(1);
+    });
+});
+
+describe('debounce', () => {
+    it('debounces function execution', async () => {
+        let count = 0;
+        const fn = debounce(() => {
+            count++;
+        }, 50);
+
+        fn();
+        fn();
+        fn();
+        expect(count).toBe(0);
+
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        expect(count).toBe(1);
+    });
+
+    it('cancels pending invocation', async () => {
+        let count = 0;
+        const fn = debounce(() => {
+            count++;
+        }, 50);
+
+        fn();
+        fn.cancel();
+
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        expect(count).toBe(0);
     });
 });
