@@ -1,7 +1,7 @@
 {
-    "id": "obsidian-workday-widget",
+    "id": "workday-widget",
     "name": "Workday Widget",
-    "version": "1.3.2",
+    "version": "1.4",
     "minAppVersion": "1.0.0",
     "description": "Таймеры и прогресс рабочего дня в боковой панели",
     "author": "Dimanchello",
