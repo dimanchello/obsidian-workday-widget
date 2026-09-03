@@ -38,6 +38,7 @@ describe('migrateSettings', () => {
                 notifiedEnd: false,
                 startTime: '09:00',
                 endTime: '18:00',
+                daysOfWeek: [1, 2, 3, 4, 5],
                 targetDatetime: '',
                 startDatetime: '',
             },
@@ -62,7 +63,57 @@ describe('migrateSettings', () => {
 
         expect(timers[0].type).toBe('range');
         expect(timers[0].endTime).toBe('18:00');
+        expect(timers[0].daysOfWeek).toEqual([1, 2, 3, 4, 5]);
         expect(timers[1].type).toBe('countdown');
+    });
+
+    it('initializes daysOfWeek on range timers if missing', () => {
+        const timers = [
+            {
+                id: 'r2',
+                emoji: '💼',
+                name: 'Range Without Days',
+                type: 'range',
+                color: '#7c6af7',
+                notifyStart: false,
+                notifyEnd: false,
+                notifiedStart: false,
+                notifiedEnd: false,
+                startTime: '09:00',
+                endTime: '18:00',
+                targetDatetime: '',
+                startDatetime: '',
+            },
+        ] as TimerConfig[];
+
+        migrateSettings(timers);
+
+        expect(timers[0].daysOfWeek).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('preserves existing custom daysOfWeek on range timers', () => {
+        const timers = [
+            {
+                id: 'r3',
+                emoji: '💼',
+                name: 'Weekend Shift',
+                type: 'range',
+                color: '#7c6af7',
+                notifyStart: false,
+                notifyEnd: false,
+                notifiedStart: false,
+                notifiedEnd: false,
+                startTime: '09:00',
+                endTime: '18:00',
+                daysOfWeek: [0, 6],
+                targetDatetime: '',
+                startDatetime: '',
+            },
+        ] as TimerConfig[];
+
+        migrateSettings(timers);
+
+        expect(timers[0].daysOfWeek).toEqual([0, 6]);
     });
 
     it('migrates workday type to range with correct endTime', () => {

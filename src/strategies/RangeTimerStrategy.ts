@@ -16,6 +16,22 @@ export class RangeTimerStrategy implements TimerStrategy {
         const endM = toMin(timer.endTime);
         const totalM = endM > startM ? endM - startM : 0;
 
+        const days = timer.daysOfWeek ?? [1, 2, 3, 4, 5];
+        const currentDay = now.getDay();
+
+        if (!days.includes(currentDay)) {
+            return {
+                type: 'range',
+                status: 'off',
+                startM,
+                endM,
+                totalM,
+                pct: 0,
+                passedM: 0,
+                leftM: 0,
+            };
+        }
+
         if (totalM <= 0) {
             return {
                 type: 'range',
@@ -90,6 +106,18 @@ export class RangeTimerStrategy implements TimerStrategy {
         els.lblPct.textContent = `${result.pct.toFixed(1)}%`;
         els.passedEl.textContent = durStrShort(result.passedM);
         els.leftEl.textContent = durStrShort(result.leftM);
+
+        if (result.status === 'off') {
+            els.passedEl.textContent = '—';
+            els.leftEl.textContent = '—';
+            this.setStatus(
+                els,
+                t('statusDayOff'),
+                'var(--text-muted)',
+                'var(--background-secondary)',
+            );
+            return;
+        }
 
         if (result.status === 'invalid') {
             this.setStatus(

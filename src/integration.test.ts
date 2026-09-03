@@ -192,6 +192,7 @@ describe('Integration: TimerEngine & Notifications', () => {
             notifiedEnd: false,
             startTime: '09:00',
             endTime: '18:00',
+            daysOfWeek: [1, 2, 3, 4, 5],
             targetDatetime: '',
             startDatetime: '',
         };
@@ -259,5 +260,15 @@ describe('Integration: TimerEngine & Notifications', () => {
         // Subsequent ticks after done - no duplicate notification!
         engine.tick(new Date(2026, 5, 1, 18, 2, 0));
         expect(noticeMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not trigger notifications on inactive days of the week', () => {
+        const timer = pluginMock.settings.timers[0];
+
+        // 2026-06-06 is Saturday (inactive for [1, 2, 3, 4, 5])
+        engine.tick(new Date(2026, 5, 6, 12, 0, 0));
+        expect(noticeMock).not.toHaveBeenCalled();
+        expect(timer.notifiedStart).toBe(false);
+        expect(timer.notifiedEnd).toBe(false);
     });
 });

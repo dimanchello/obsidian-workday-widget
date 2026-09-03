@@ -15,12 +15,13 @@ export interface TimerConfig {
     // range
     startTime: string;
     endTime: string;
+    daysOfWeek?: number[];
     // countdown
     targetDatetime: string; // YYYY-MM-DDTHH:mm (datetime-local)
     startDatetime: string; // YYYY-MM-DDTHH:mm (datetime-local)
 }
 
-export type RangeStatus = 'invalid' | 'before' | 'running' | 'done';
+export type RangeStatus = 'invalid' | 'before' | 'running' | 'done' | 'off';
 export type CountdownStatus =
     | 'no-target'
     | 'bad-target'

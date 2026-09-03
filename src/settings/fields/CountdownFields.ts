@@ -1,5 +1,6 @@
 import type { TimerConfig } from '../../types';
 import { t } from '../../i18n';
+import { renderNotificationFields } from './NotificationFields';
 
 export function renderCountdownFields(
     card: HTMLElement,
@@ -39,4 +40,7 @@ export function renderCountdownFields(
         timer.targetDatetime = targetInput.value;
         await onSave();
     });
+
+    // Notifications
+    renderNotificationFields(card, timer, onSave);
 }

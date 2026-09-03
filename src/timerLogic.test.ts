@@ -100,6 +100,49 @@ describe('calcRange', () => {
         expect(r.totalM).toBe(1);
         expect(r.pct).toBe(50);
     });
+
+    it('returns off state on inactive days of the week', () => {
+        const timer = makeTimer({
+            startTime: '09:00',
+            endTime: '18:00',
+            daysOfWeek: [1, 2, 3, 4, 5],
+        });
+        // 2026-01-03 is Saturday
+        const saturday = new Date(2026, 0, 3, 12, 0, 0);
+        const r = calcRange(timer, saturday);
+        expect(r.status).toBe('off');
+        expect(r.pct).toBe(0);
+        expect(r.passedM).toBe(0);
+        expect(r.leftM).toBe(0);
+    });
+
+    it('returns running state on active weekend for custom daysOfWeek', () => {
+        const timer = makeTimer({
+            startTime: '09:00',
+            endTime: '18:00',
+            daysOfWeek: [0, 6],
+        });
+        // 2026-01-03 is Saturday
+        const saturday = new Date(2026, 0, 3, 12, 0, 0);
+        const rSat = calcRange(timer, saturday);
+        expect(rSat.status).toBe('running');
+
+        // 2026-01-01 is Thursday
+        const thursday = new Date(2026, 0, 1, 12, 0, 0);
+        const rThu = calcRange(timer, thursday);
+        expect(rThu.status).toBe('off');
+    });
+
+    it('returns off state when daysOfWeek is empty', () => {
+        const timer = makeTimer({
+            startTime: '09:00',
+            endTime: '18:00',
+            daysOfWeek: [],
+        });
+        const now = new Date(2026, 0, 1, 12, 0, 0);
+        const r = calcRange(timer, now);
+        expect(r.status).toBe('off');
+    });
 });
 
 describe('calcCountdown', () => {

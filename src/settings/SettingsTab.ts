@@ -73,23 +73,118 @@ export class WorkdaySettingTab extends PluginSettingTab {
             await onSave();
         }, 300);
 
-        const row1 = card.createDiv({ cls: 'wd-card-row1' });
+        card.style.setProperty('--card-color', timer.color || '#7c6af7');
 
-        const emojiField = row1.createDiv({ cls: 'wd-form-field' });
-        emojiField.createEl('label', {
-            cls: 'wd-form-label',
-            text: t('icon'),
-            attr: { title: t('iconHint') },
-        });
-        const emojiTrigger = emojiField.createEl('button', {
+        // --- Card Header: Emoji, Name, Color Swatch & Actions ---
+        const header = card.createDiv({ cls: 'wd-card-header' });
+        const titleGroup = header.createDiv({ cls: 'wd-card-title-group' });
+
+        const emojiTrigger = titleGroup.createEl('button', {
             cls: 'wd-emoji-trigger',
-            text: timer.emoji,
+            text: timer.emoji || '⏱️',
+            attr: { type: 'button', title: t('iconHint') },
         });
 
+        const nameInput = titleGroup.createEl('input', {
+            cls: 'wd-card-name-input',
+            attr: { placeholder: t('myTimer') },
+        });
+        nameInput.value = timer.name || '';
+        nameInput.addEventListener('input', () => {
+            timer.name = nameInput.value.trim();
+            debouncedSave();
+        });
+
+        const colorWrap = titleGroup.createDiv({
+            cls: 'wd-color-picker-wrap',
+            attr: { title: t('colorHint') },
+        });
+        const colorPicker = colorWrap.createEl('input', {
+            cls: 'wd-color-picker',
+            attr: { type: 'color', value: timer.color || '#7c6af7' },
+        });
+        colorPicker.addEventListener('input', () => {
+            timer.color = colorPicker.value;
+            card.style.setProperty('--card-color', timer.color);
+            debouncedSave();
+        });
+
+        if (this.plugin.settings.timers.length > 1) {
+            const actions = header.createDiv({ cls: 'wd-card-actions' });
+
+            const moveUpBtn = actions.createEl('button', {
+                cls: 'wd-btn-icon',
+                text: '↑',
+                attr: { title: t('moveUp'), type: 'button' },
+            });
+            if (idx === 0) moveUpBtn.disabled = true;
+            moveUpBtn.addEventListener('click', async () => {
+                const arr = this.plugin.settings.timers;
+                const moved = arr.splice(idx, 1)[0];
+                arr.splice(idx - 1, 0, moved);
+                this.plugin.settings.activeIndex = adjustIndexOnMove(
+                    this.plugin.settings.activeIndex,
+                    idx,
+                    idx - 1,
+                );
+                await this.plugin.saveSettings();
+                this.plugin.refreshView();
+                this.display();
+            });
+
+            const moveDownBtn = actions.createEl('button', {
+                cls: 'wd-btn-icon',
+                text: '↓',
+                attr: { title: t('moveDown'), type: 'button' },
+            });
+            if (idx === this.plugin.settings.timers.length - 1) moveDownBtn.disabled = true;
+            moveDownBtn.addEventListener('click', async () => {
+                const arr = this.plugin.settings.timers;
+                const moved = arr.splice(idx, 1)[0];
+                arr.splice(idx + 1, 0, moved);
+                this.plugin.settings.activeIndex = adjustIndexOnMove(
+                    this.plugin.settings.activeIndex,
+                    idx,
+                    idx + 1,
+                );
+                await this.plugin.saveSettings();
+                this.plugin.refreshView();
+                this.display();
+            });
+
+            const delBtn = actions.createEl('button', {
+                cls: 'wd-btn-icon wd-btn-delete',
+                text: '✕',
+                attr: { title: t('deleteTimer'), type: 'button' },
+            });
+            delBtn.addEventListener('click', () => {
+                new ConfirmModal(
+                    this.plugin.app,
+                    t('confirmDelete', { name: timer.name || timer.emoji }),
+                    async () => {
+                        this.plugin.settings.activeIndex = adjustIndexOnDelete(
+                            this.plugin.settings.activeIndex,
+                            idx,
+                            this.plugin.settings.timers.length,
+                        );
+                        this.plugin.settings.timers.splice(idx, 1);
+                        await this.plugin.saveSettings();
+                        this.plugin.refreshView();
+                        this.display();
+                    },
+                ).open();
+            });
+        }
+
+        // --- Emoji Collapsible Drawer ---
         const emojiPanelWrap = card.createDiv({ cls: 'wd-emoji-panel-wrap' });
         const emojiGrid = emojiPanelWrap.createDiv({ cls: 'wd-emoji-grid' });
         EMOJIS.forEach((em) => {
-            const btn = emojiGrid.createEl('button', { cls: 'wd-emoji-option', text: em });
+            const btn = emojiGrid.createEl('button', {
+                cls: 'wd-emoji-option',
+                text: em,
+                attr: { type: 'button' },
+            });
             if (em === timer.emoji) btn.addClass('active');
             btn.addEventListener('click', async () => {
                 timer.emoji = em;
@@ -121,129 +216,8 @@ export class WorkdaySettingTab extends PluginSettingTab {
             }
         });
 
-        const colorField = row1.createDiv({ cls: 'wd-form-field' });
-        colorField.createEl('label', {
-            cls: 'wd-form-label',
-            text: t('color'),
-            attr: { title: t('colorHint') },
-        });
-        const colorWrap = colorField.createDiv({ cls: 'wd-form-color-wrap' });
-        const colorPicker = colorWrap.createEl('input', {
-            attr: { type: 'color', value: timer.color || '#7c6af7' },
-        });
-        colorPicker.addEventListener('input', () => {
-            timer.color = colorPicker.value;
-            debouncedSave();
-        });
-
-        const notifyStartField = row1.createDiv({ cls: 'wd-form-field' });
-        notifyStartField.createEl('label', {
-            cls: 'wd-form-label',
-            text: t('notifyStart'),
-            attr: { title: t('notifyStartHint') },
-        });
-        const toggleStart = notifyStartField.createDiv({ cls: 'checkbox-container' });
-        if (timer.notifyStart) toggleStart.addClass('is-enabled');
-        toggleStart.addEventListener('click', async () => {
-            timer.notifyStart = !toggleStart.hasClass('is-enabled');
-            toggleStart.toggleClass('is-enabled', timer.notifyStart);
-            await onSave();
-        });
-
-        const notifyEndField = row1.createDiv({ cls: 'wd-form-field' });
-        notifyEndField.createEl('label', {
-            cls: 'wd-form-label',
-            text: t('notifyEnd'),
-            attr: { title: t('notifyEndHint') },
-        });
-        const toggleEnd = notifyEndField.createDiv({ cls: 'checkbox-container' });
-        if (timer.notifyEnd) toggleEnd.addClass('is-enabled');
-        toggleEnd.addEventListener('click', async () => {
-            timer.notifyEnd = !toggleEnd.hasClass('is-enabled');
-            toggleEnd.toggleClass('is-enabled', timer.notifyEnd);
-            await onSave();
-        });
-
-        if (this.plugin.settings.timers.length > 1) {
-            const moveUpBtn = row1.createEl('button', {
-                cls: 'wd-move-btn',
-                text: '↑',
-                attr: { title: t('moveUp') },
-            });
-            if (idx === 0) moveUpBtn.disabled = true;
-            moveUpBtn.addEventListener('click', async () => {
-                const arr = this.plugin.settings.timers;
-                const moved = arr.splice(idx, 1)[0];
-                arr.splice(idx - 1, 0, moved);
-                this.plugin.settings.activeIndex = adjustIndexOnMove(
-                    this.plugin.settings.activeIndex,
-                    idx,
-                    idx - 1,
-                );
-                await this.plugin.saveSettings();
-                this.plugin.refreshView();
-                this.display();
-            });
-
-            const moveDownBtn = row1.createEl('button', {
-                cls: 'wd-move-btn',
-                text: '↓',
-                attr: { title: t('moveDown') },
-            });
-            if (idx === this.plugin.settings.timers.length - 1) moveDownBtn.disabled = true;
-            moveDownBtn.addEventListener('click', async () => {
-                const arr = this.plugin.settings.timers;
-                const moved = arr.splice(idx, 1)[0];
-                arr.splice(idx + 1, 0, moved);
-                this.plugin.settings.activeIndex = adjustIndexOnMove(
-                    this.plugin.settings.activeIndex,
-                    idx,
-                    idx + 1,
-                );
-                await this.plugin.saveSettings();
-                this.plugin.refreshView();
-                this.display();
-            });
-
-            const delBtn = row1.createEl('button', {
-                cls: 'wd-del-btn',
-                text: '✕',
-                attr: { title: t('deleteTimer') },
-            });
-            delBtn.addEventListener('click', () => {
-                new ConfirmModal(
-                    this.plugin.app,
-                    t('confirmDelete', { name: timer.name || timer.emoji }),
-                    async () => {
-                        this.plugin.settings.activeIndex = adjustIndexOnDelete(
-                            this.plugin.settings.activeIndex,
-                            idx,
-                            this.plugin.settings.timers.length,
-                        );
-                        this.plugin.settings.timers.splice(idx, 1);
-                        await this.plugin.saveSettings();
-                        this.plugin.refreshView();
-                        this.display();
-                    },
-                ).open();
-            });
-        }
-
-        const row2 = card.createDiv({ cls: 'wd-form-row-2' });
-
-        const nameField = row2.createDiv({ cls: 'wd-form-field' });
-        nameField.createEl('label', { cls: 'wd-form-label', text: t('name') });
-        const nameInput = nameField.createEl('input', {
-            cls: 'wd-card-name-input',
-            attr: { placeholder: t('myTimer') },
-        });
-        nameInput.value = timer.name || '';
-        nameInput.addEventListener('input', () => {
-            timer.name = nameInput.value.trim();
-            debouncedSave();
-        });
-
-        const typeField = row2.createDiv({ cls: 'wd-form-field' });
+        // --- Timer Type ---
+        const typeField = card.createDiv({ cls: 'wd-form-field' });
         typeField.createEl('label', { cls: 'wd-form-label', text: t('type') });
         const typeSelect = typeField.createEl('select', { cls: 'wd-form-select' });
         [

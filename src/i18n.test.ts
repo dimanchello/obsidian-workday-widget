@@ -16,6 +16,12 @@ describe('i18n t()', () => {
         expect(t('moveUp', undefined, 'en')).toBe('Move up');
         expect(t('moveDown', undefined, 'en')).toBe('Move down');
         expect(t('statusInvalidRange', undefined, 'en')).toBe('⚠️ Start date is after target date');
+        expect(t('daysOfWeek', undefined, 'ru')).toBe('Дни недели');
+        expect(t('daysOfWeek', undefined, 'en')).toBe('Days of week');
+        expect(t('dayMon', undefined, 'ru')).toBe('Пн');
+        expect(t('dayMon', undefined, 'en')).toBe('Mo');
+        expect(t('statusDayOff', undefined, 'ru')).toBe('🏖️ Выходной');
+        expect(t('statusDayOff', undefined, 'en')).toBe('🏖️ Day off');
     });
 
     it('interpolates single parameter correctly', () => {

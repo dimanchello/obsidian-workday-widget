@@ -133,6 +133,23 @@ export const EMOJIS: string[] = [
     '🪐',
 ];
 
+export interface DayOfWeekOption {
+    day: number;
+    labelKey: string;
+}
+
+export const DAYS_OF_WEEK: DayOfWeekOption[] = [
+    { day: 1, labelKey: 'dayMon' },
+    { day: 2, labelKey: 'dayTue' },
+    { day: 3, labelKey: 'dayWed' },
+    { day: 4, labelKey: 'dayThu' },
+    { day: 5, labelKey: 'dayFri' },
+    { day: 6, labelKey: 'daySat' },
+    { day: 0, labelKey: 'daySun' },
+];
+
+export const DEFAULT_DAYS_OF_WEEK = [1, 2, 3, 4, 5];
+
 export const DEFAULT_TIMER: TimerConfig = {
     id: '',
     emoji: '💼',
@@ -145,6 +162,7 @@ export const DEFAULT_TIMER: TimerConfig = {
     notifiedEnd: false,
     startTime: '09:00',
     endTime: '18:00',
+    daysOfWeek: DEFAULT_DAYS_OF_WEEK,
     targetDatetime: '',
     startDatetime: '',
 };
@@ -156,6 +174,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
             id: 'default',
             emoji: '💼',
             name: 'Рабочий день',
+            daysOfWeek: [1, 2, 3, 4, 5],
         },
     ],
     activeIndex: 0,

@@ -88,6 +88,15 @@ export class TimerEngine implements ITimerEngine {
     private checkRangeNotification(timer: TimerConfig, now: Date): void {
         const r = calcRange(timer, now);
 
+        if (r.status === 'off') {
+            if (timer.notifiedStart || timer.notifiedEnd) {
+                timer.notifiedStart = false;
+                timer.notifiedEnd = false;
+                void this.plugin.saveSettings();
+            }
+            return;
+        }
+
         if (r.status === 'before') {
             if (timer.notifiedStart || timer.notifiedEnd) {
                 timer.notifiedStart = false;
