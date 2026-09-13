@@ -5,12 +5,15 @@ describe('i18n t()', () => {
     it('returns translation for existing key in default/Russian locale', () => {
         expect(t('icon')).toBe('Иконка');
         expect(t('start')).toBe('Начало');
+        expect(t('unitYear')).toBe('г');
         expect(t('unitDay')).toBe('д');
     });
 
     it('returns translation for specified language', () => {
         expect(t('icon', undefined, 'en')).toBe('Icon');
         expect(t('icon', undefined, 'ru')).toBe('Иконка');
+        expect(t('unitYear', undefined, 'en')).toBe('y');
+        expect(t('unitYear', undefined, 'ru')).toBe('г');
         expect(t('unitHour', undefined, 'en')).toBe('h');
         expect(t('unitHour', undefined, 'ru')).toBe('ч');
         expect(t('moveUp', undefined, 'en')).toBe('Move up');

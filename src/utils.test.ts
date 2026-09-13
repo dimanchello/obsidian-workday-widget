@@ -75,6 +75,10 @@ describe('durStr', () => {
     it('handles large durations', () => {
         expect(durStr(86400)).toBe('1д 0ч 0м');
         expect(durStr(172800)).toBe('2д 0ч 0м');
+        expect(durStr(86400 * 364)).toBe('364д 0ч 0м');
+        expect(durStr(86400 * 365)).toBe('1г 0д 0ч 0м');
+        expect(durStr(86400 * 962)).toBe('2г 232д 0ч 0м');
+        expect(durStr(86400 * 962 + 3600 * 14 + 60 * 32)).toBe('2г 232д 14ч 32м');
     });
 
     it('clamps negative values to 0', () => {
@@ -165,6 +169,8 @@ describe('durStr with locales', () => {
         expect(durStr(125, 'en')).toBe('2m 5s');
         expect(durStr(3661, 'en')).toBe('1h 1m');
         expect(durStr(90061, 'en')).toBe('1d 1h 1m');
+        expect(durStr(86400 * 365, 'en')).toBe('1y 0d 0h 0m');
+        expect(durStr(86400 * 962 + 3600 * 14 + 60 * 32, 'en')).toBe('2y 232d 14h 32m');
     });
 
     it('formats short duration with english units', () => {

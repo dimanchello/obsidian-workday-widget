@@ -1,6 +1,7 @@
 import type { Lang } from './i18n';
 import { t } from './i18n';
 
+const DAYS_IN_YEAR = 365;
 const SECONDS_IN_DAY = 86400;
 const SECONDS_IN_HOUR = 3600;
 const SECONDS_IN_MINUTE = 60;
@@ -23,15 +24,19 @@ export function fromMin(m: number): string {
 
 export function durStr(totalSec: number, lang?: Lang): string {
     totalSec = Math.max(0, Math.round(totalSec));
-    const d = Math.floor(totalSec / SECONDS_IN_DAY);
+    const totalDays = Math.floor(totalSec / SECONDS_IN_DAY);
+    const y = Math.floor(totalDays / DAYS_IN_YEAR);
+    const d = totalDays % DAYS_IN_YEAR;
     const h = Math.floor((totalSec % SECONDS_IN_DAY) / SECONDS_IN_HOUR);
     const m = Math.floor((totalSec % SECONDS_IN_HOUR) / SECONDS_IN_MINUTE);
     const s = totalSec % SECONDS_IN_MINUTE;
+    const yUnit = t('unitYear', undefined, lang);
     const dUnit = t('unitDay', undefined, lang);
     const hUnit = t('unitHour', undefined, lang);
     const mUnit = t('unitMinute', undefined, lang);
     const sUnit = t('unitSecond', undefined, lang);
 
+    if (y > 0) return `${y}${yUnit} ${d}${dUnit} ${h}${hUnit} ${m}${mUnit}`;
     if (d > 0) return `${d}${dUnit} ${h}${hUnit} ${m}${mUnit}`;
     if (h > 0) return `${h}${hUnit} ${m}${mUnit}`;
     if (m > 0) return `${m}${mUnit} ${s}${sUnit}`;
