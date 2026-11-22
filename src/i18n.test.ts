@@ -6,6 +6,7 @@ describe('i18n t()', () => {
         expect(t('icon')).toBe('Иконка');
         expect(t('start')).toBe('Начало');
         expect(t('unitYear')).toBe('г');
+        expect(t('unitMonth')).toBe('мес');
         expect(t('unitDay')).toBe('д');
     });
 
@@ -14,6 +15,8 @@ describe('i18n t()', () => {
         expect(t('icon', undefined, 'ru')).toBe('Иконка');
         expect(t('unitYear', undefined, 'en')).toBe('y');
         expect(t('unitYear', undefined, 'ru')).toBe('г');
+        expect(t('unitMonth', undefined, 'en')).toBe('mo');
+        expect(t('unitMonth', undefined, 'ru')).toBe('мес');
         expect(t('unitHour', undefined, 'en')).toBe('h');
         expect(t('unitHour', undefined, 'ru')).toBe('ч');
         expect(t('moveUp', undefined, 'en')).toBe('Move up');

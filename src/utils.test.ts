@@ -11,6 +11,9 @@ import {
     adjustIndexOnDelete,
     adjustIndexOnMove,
     debounce,
+    calendarDiff,
+    secondsDiff,
+    formatDurationParts,
 } from './utils';
 
 describe('toMin', () => {
@@ -64,30 +67,30 @@ describe('fromMin', () => {
 });
 
 describe('durStr', () => {
-    it('formats seconds to human-readable duration', () => {
-        expect(durStr(0)).toBe('0с');
-        expect(durStr(45)).toBe('45с');
-        expect(durStr(125)).toBe('2м 5с');
-        expect(durStr(3661)).toBe('1ч 1м');
-        expect(durStr(90061)).toBe('1д 1ч 1м');
+    it('formats seconds to human-readable duration with dynamic window', () => {
+        expect(durStr(0)).toBe('0 с');
+        expect(durStr(45)).toBe('45 с');
+        expect(durStr(125)).toBe('2 м 5 с');
+        expect(durStr(3661)).toBe('1 ч 1 м 1 с');
+        expect(durStr(90061)).toBe('1 д 1 ч 1 м');
     });
 
-    it('handles large durations', () => {
-        expect(durStr(86400)).toBe('1д 0ч 0м');
-        expect(durStr(172800)).toBe('2д 0ч 0м');
-        expect(durStr(86400 * 364)).toBe('364д 0ч 0м');
-        expect(durStr(86400 * 365)).toBe('1г 0д 0ч 0м');
-        expect(durStr(86400 * 962)).toBe('2г 232д 0ч 0м');
-        expect(durStr(86400 * 962 + 3600 * 14 + 60 * 32)).toBe('2г 232д 14ч 32м');
+    it('handles large durations with months and years and skips zero components', () => {
+        expect(durStr(86400)).toBe('1 д');
+        expect(durStr(172800)).toBe('2 д');
+        expect(durStr(86400 * 364)).toBe('11 мес 34 д');
+        expect(durStr(86400 * 365)).toBe('1 г');
+        expect(durStr(86400 * 962)).toBe('2 г 7 мес 22 д');
+        expect(durStr(86400 * 962 + 3600 * 14 + 60 * 32)).toBe('2 г 7 мес 22 д');
     });
 
     it('clamps negative values to 0', () => {
-        expect(durStr(-100)).toBe('0с');
+        expect(durStr(-100)).toBe('0 с');
     });
 
     it('rounds fractional seconds', () => {
-        expect(durStr(59.6)).toBe('1м 0с');
-        expect(durStr(59.4)).toBe('59с');
+        expect(durStr(59.6)).toBe('1 м');
+        expect(durStr(59.4)).toBe('59 с');
     });
 });
 
@@ -164,13 +167,13 @@ describe('isValidDate', () => {
 
 describe('durStr with locales', () => {
     it('formats duration with english units', () => {
-        expect(durStr(0, 'en')).toBe('0s');
-        expect(durStr(45, 'en')).toBe('45s');
-        expect(durStr(125, 'en')).toBe('2m 5s');
-        expect(durStr(3661, 'en')).toBe('1h 1m');
-        expect(durStr(90061, 'en')).toBe('1d 1h 1m');
-        expect(durStr(86400 * 365, 'en')).toBe('1y 0d 0h 0m');
-        expect(durStr(86400 * 962 + 3600 * 14 + 60 * 32, 'en')).toBe('2y 232d 14h 32m');
+        expect(durStr(0, 'en')).toBe('0 s');
+        expect(durStr(45, 'en')).toBe('45 s');
+        expect(durStr(125, 'en')).toBe('2 m 5 s');
+        expect(durStr(3661, 'en')).toBe('1 h 1 m 1 s');
+        expect(durStr(90061, 'en')).toBe('1 d 1 h 1 m');
+        expect(durStr(86400 * 365, 'en')).toBe('1 y');
+        expect(durStr(86400 * 962 + 3600 * 14 + 60 * 32, 'en')).toBe('2 y 7 mo 22 d');
     });
 
     it('formats short duration with english units', () => {
@@ -178,6 +181,114 @@ describe('durStr with locales', () => {
         expect(durStrShort(45, 'en')).toBe('45m');
         expect(durStrShort(60, 'en')).toBe('1h');
         expect(durStrShort(90, 'en')).toBe('1h 30m');
+    });
+});
+
+describe('durStr with Date objects (calendarDiff)', () => {
+    it('formats exact calendar difference across years, months and days', () => {
+        const from = new Date(2024, 4, 3, 0, 0, 0); // 2024-05-03
+        const to = new Date(2026, 10, 22, 17, 19, 13); // 2026-11-22 17:19:13
+        expect(durStr(from, to)).toBe('2 г 6 мес 19 д');
+    });
+
+    it('formats remaining time for years > 0 without hours and minutes', () => {
+        const from = new Date(2026, 10, 22, 17, 19, 13);
+        const to = new Date(2029, 4, 3, 0, 0, 0);
+        expect(durStr(from, to)).toBe('2 г 5 мес 10 д');
+    });
+
+    it('switches to months, days, hours when remaining time is less than a year', () => {
+        const from = new Date(2026, 0, 1, 0, 0, 0);
+        const to = new Date(2026, 5, 15, 8, 30, 0);
+        expect(durStr(from, to)).toBe('5 мес 14 д 8 ч');
+    });
+
+    it('switches to days, hours, minutes when remaining time is less than a month', () => {
+        const from = new Date(2026, 0, 1, 0, 0, 0);
+        const to = new Date(2026, 0, 12, 14, 25, 30);
+        expect(durStr(from, to)).toBe('11 д 14 ч 25 м');
+    });
+
+    it('switches to hours, minutes, seconds when remaining time is less than a day', () => {
+        const from = new Date(2026, 0, 1, 0, 0, 0);
+        const to = new Date(2026, 0, 1, 6, 40, 15);
+        expect(durStr(from, to)).toBe('6 ч 40 м 15 с');
+    });
+
+    it('switches to minutes, seconds when remaining time is less than an hour', () => {
+        const from = new Date(2026, 0, 1, 0, 0, 0);
+        const to = new Date(2026, 0, 1, 0, 42, 18);
+        expect(durStr(from, to)).toBe('42 м 18 с');
+    });
+
+    it('switches to seconds when remaining time is less than a minute', () => {
+        const from = new Date(2026, 0, 1, 0, 0, 0);
+        const to = new Date(2026, 0, 1, 0, 0, 23);
+        expect(durStr(from, to)).toBe('23 с');
+    });
+
+    it('skips zero components in the middle (Option A)', () => {
+        const from = new Date(2024, 0, 1, 0, 0, 0);
+        const to = new Date(2026, 0, 6, 0, 0, 0); // 2 years, 0 months, 5 days
+        expect(durStr(from, to)).toBe('2 г 5 д');
+    });
+
+    it('returns 0 seconds when from >= to or dates are invalid', () => {
+        const d1 = new Date(2026, 0, 1);
+        const d2 = new Date(2025, 0, 1);
+        expect(durStr(d1, d2)).toBe('0 с');
+        expect(durStr(d1, d1)).toBe('0 с');
+        expect(durStr(new Date('invalid'), d1)).toBe('0 с');
+    });
+
+    it('supports english locale with Date objects', () => {
+        const from = new Date(2024, 0, 1, 0, 0, 0);
+        const to = new Date(2026, 2, 10, 0, 0, 0);
+        expect(durStr(from, to, 'en')).toBe('2 y 2 mo 9 d');
+    });
+});
+
+describe('calendarDiff and leap years', () => {
+    it('handles leap year transition from Feb 29 to Feb 28', () => {
+        const leapDate = new Date(2024, 1, 29, 12, 0, 0);
+        const nextYear = new Date(2025, 1, 28, 12, 0, 0);
+        const diff = calendarDiff(leapDate, nextYear);
+        expect(diff.y).toBe(1);
+        expect(diff.m).toBe(0);
+        expect(diff.d).toBe(0);
+    });
+
+    it('handles month end day clamping (Jan 31 to Feb 29 in leap year)', () => {
+        const jan31 = new Date(2024, 0, 31, 10, 0, 0);
+        const feb29 = new Date(2024, 1, 29, 10, 0, 0);
+        const diff = calendarDiff(jan31, feb29);
+        expect(diff.y).toBe(0);
+        expect(diff.m).toBe(1);
+        expect(diff.d).toBe(0);
+    });
+});
+
+describe('secondsDiff', () => {
+    it('decomposes total seconds into duration components', () => {
+        const parts = secondsDiff(86400 * 365 + 86400 * 60 + 3600 * 5 + 60 * 10 + 25);
+        expect(parts.y).toBe(1);
+        expect(parts.m).toBe(2);
+        expect(parts.d).toBe(0);
+        expect(parts.h).toBe(5);
+        expect(parts.min).toBe(10);
+        expect(parts.s).toBe(25);
+    });
+});
+
+describe('formatDurationParts', () => {
+    it('formats parts correctly skipping zeros within the active window', () => {
+        const parts = { y: 0, m: 2, d: 0, h: 4, min: 10, s: 0 };
+        expect(formatDurationParts(parts)).toBe('2 мес 4 ч');
+    });
+
+    it('returns 0 seconds when all units are 0', () => {
+        const parts = { y: 0, m: 0, d: 0, h: 0, min: 0, s: 0 };
+        expect(formatDurationParts(parts)).toBe('0 с');
     });
 });
 

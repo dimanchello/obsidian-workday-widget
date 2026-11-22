@@ -2,6 +2,7 @@ import type { Lang } from './i18n';
 import { t } from './i18n';
 
 const DAYS_IN_YEAR = 365;
+const DAYS_IN_MONTH = 30;
 const SECONDS_IN_DAY = 86400;
 const SECONDS_IN_HOUR = 3600;
 const SECONDS_IN_MINUTE = 60;
@@ -22,25 +23,163 @@ export function fromMin(m: number): string {
     return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
-export function durStr(totalSec: number, lang?: Lang): string {
+export interface DurationParts {
+    y: number;
+    m: number;
+    d: number;
+    h: number;
+    min: number;
+    s: number;
+}
+
+export function calendarDiff(from: Date, to: Date): DurationParts {
+    if (to.getTime() <= from.getTime()) {
+        return { y: 0, m: 0, d: 0, h: 0, min: 0, s: 0 };
+    }
+
+    let y = to.getFullYear() - from.getFullYear();
+    const testYearDate = (yearCount: number): Date => {
+        const targetYear = from.getFullYear() + yearCount;
+        const targetMonth = from.getMonth();
+        const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+        const targetDay = Math.min(from.getDate(), maxDays);
+        return new Date(
+            targetYear,
+            targetMonth,
+            targetDay,
+            from.getHours(),
+            from.getMinutes(),
+            from.getSeconds(),
+            from.getMilliseconds(),
+        );
+    };
+
+    if (testYearDate(y).getTime() > to.getTime()) {
+        y--;
+    }
+    y = Math.max(0, y);
+
+    let m = 0;
+    const testMonthDate = (monthCount: number): Date => {
+        const totalMonths = from.getMonth() + monthCount;
+        const targetYear = from.getFullYear() + y + Math.floor(totalMonths / 12);
+        const targetMonth = ((totalMonths % 12) + 12) % 12;
+        const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+        const targetDay = Math.min(from.getDate(), maxDays);
+        return new Date(
+            targetYear,
+            targetMonth,
+            targetDay,
+            from.getHours(),
+            from.getMinutes(),
+            from.getSeconds(),
+            from.getMilliseconds(),
+        );
+    };
+
+    while (m < 12) {
+        if (testMonthDate(m + 1).getTime() <= to.getTime()) {
+            m++;
+        } else {
+            break;
+        }
+    }
+
+    const baseDate = testMonthDate(m);
+    const remMs = Math.max(0, to.getTime() - baseDate.getTime());
+    const remSec = Math.round(remMs / 1000);
+
+    const s = remSec % SECONDS_IN_MINUTE;
+    const totalMin = Math.floor(remSec / SECONDS_IN_MINUTE);
+    const min = totalMin % 60;
+    const totalHours = Math.floor(totalMin / 60);
+    const h = totalHours % 24;
+    const d = Math.floor(totalHours / 24);
+
+    return { y, m, d, h, min, s };
+}
+
+export function secondsDiff(totalSec: number): DurationParts {
     totalSec = Math.max(0, Math.round(totalSec));
     const totalDays = Math.floor(totalSec / SECONDS_IN_DAY);
     const y = Math.floor(totalDays / DAYS_IN_YEAR);
-    const d = totalDays % DAYS_IN_YEAR;
+    const remDays = totalDays % DAYS_IN_YEAR;
+    const m = Math.min(11, Math.floor(remDays / DAYS_IN_MONTH));
+    const d = remDays - m * DAYS_IN_MONTH;
     const h = Math.floor((totalSec % SECONDS_IN_DAY) / SECONDS_IN_HOUR);
-    const m = Math.floor((totalSec % SECONDS_IN_HOUR) / SECONDS_IN_MINUTE);
+    const min = Math.floor((totalSec % SECONDS_IN_HOUR) / SECONDS_IN_MINUTE);
     const s = totalSec % SECONDS_IN_MINUTE;
+    return { y, m, d, h, min, s };
+}
+
+export function formatDurationParts(parts: DurationParts, lang?: Lang): string {
+    const { y, m, d, h, min, s } = parts;
     const yUnit = t('unitYear', undefined, lang);
+    const moUnit = t('unitMonth', undefined, lang);
     const dUnit = t('unitDay', undefined, lang);
     const hUnit = t('unitHour', undefined, lang);
     const mUnit = t('unitMinute', undefined, lang);
     const sUnit = t('unitSecond', undefined, lang);
 
-    if (y > 0) return `${y}${yUnit} ${d}${dUnit} ${h}${hUnit} ${m}${mUnit}`;
-    if (d > 0) return `${d}${dUnit} ${h}${hUnit} ${m}${mUnit}`;
-    if (h > 0) return `${h}${hUnit} ${m}${mUnit}`;
-    if (m > 0) return `${m}${mUnit} ${s}${sUnit}`;
-    return `${s}${sUnit}`;
+    let windowUnits: { val: number; unit: string }[];
+
+    if (y > 0) {
+        windowUnits = [
+            { val: y, unit: yUnit },
+            { val: m, unit: moUnit },
+            { val: d, unit: dUnit },
+        ];
+    } else if (m > 0) {
+        windowUnits = [
+            { val: m, unit: moUnit },
+            { val: d, unit: dUnit },
+            { val: h, unit: hUnit },
+        ];
+    } else if (d > 0) {
+        windowUnits = [
+            { val: d, unit: dUnit },
+            { val: h, unit: hUnit },
+            { val: min, unit: mUnit },
+        ];
+    } else if (h > 0) {
+        windowUnits = [
+            { val: h, unit: hUnit },
+            { val: min, unit: mUnit },
+            { val: s, unit: sUnit },
+        ];
+    } else if (min > 0) {
+        windowUnits = [
+            { val: min, unit: mUnit },
+            { val: s, unit: sUnit },
+        ];
+    } else {
+        windowUnits = [{ val: s, unit: sUnit }];
+    }
+
+    const nonZero = windowUnits.filter((item) => item.val > 0);
+    if (nonZero.length === 0) {
+        return `0 ${sUnit}`;
+    }
+
+    return nonZero.map((item) => `${item.val} ${item.unit}`).join(' ');
+}
+
+export function durStr(totalSec: number, lang?: Lang): string;
+export function durStr(from: Date, to: Date, lang?: Lang): string;
+export function durStr(arg1: number | Date, arg2?: Date | Lang, arg3?: Lang): string {
+    if (arg1 instanceof Date) {
+        const from = arg1;
+        const to = arg2 instanceof Date ? arg2 : arg1;
+        const lang = arg3;
+        if (!isValidDate(from) || !isValidDate(to) || to.getTime() <= from.getTime()) {
+            return `0 ${t('unitSecond', undefined, lang)}`;
+        }
+        return formatDurationParts(calendarDiff(from, to), lang);
+    }
+
+    const totalSec = typeof arg1 === 'number' ? arg1 : 0;
+    const lang = typeof arg2 === 'string' ? arg2 : undefined;
+    return formatDurationParts(secondsDiff(totalSec), lang);
 }
 
 export function durStrShort(min: number, lang?: Lang): string {

@@ -22,6 +22,7 @@ export interface CountdownCalculationResult {
     hasStart: boolean;
     targetDate: Date | null;
     startDate: Date | null;
+    currentDate?: Date;
 }
 
 export type TimerCalculationResult = RangeCalculationResult | CountdownCalculationResult;

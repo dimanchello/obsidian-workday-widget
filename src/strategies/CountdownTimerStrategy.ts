@@ -25,6 +25,7 @@ export class CountdownTimerStrategy implements TimerStrategy {
                 hasStart,
                 targetDate: null,
                 startDate: null,
+                currentDate: now,
             };
         }
 
@@ -41,6 +42,7 @@ export class CountdownTimerStrategy implements TimerStrategy {
                 hasStart,
                 targetDate: null,
                 startDate: null,
+                currentDate: now,
             };
         }
 
@@ -57,6 +59,7 @@ export class CountdownTimerStrategy implements TimerStrategy {
                 hasStart: true,
                 targetDate: null,
                 startDate: null,
+                currentDate: now,
             };
         }
 
@@ -72,6 +75,7 @@ export class CountdownTimerStrategy implements TimerStrategy {
                 hasStart: true,
                 targetDate: target,
                 startDate: start,
+                currentDate: now,
             };
         }
 
@@ -89,6 +93,7 @@ export class CountdownTimerStrategy implements TimerStrategy {
                 hasStart: true,
                 targetDate: target,
                 startDate: start,
+                currentDate: now,
             };
         }
 
@@ -114,6 +119,7 @@ export class CountdownTimerStrategy implements TimerStrategy {
             hasStart,
             targetDate: target,
             startDate: start,
+            currentDate: now,
         };
     }
 
@@ -188,10 +194,15 @@ export class CountdownTimerStrategy implements TimerStrategy {
             return;
         }
 
+        const zeroSec = `0 ${t('unitSecond')}`;
+
         if (result.status === 'before') {
             if (els.deleteBtn) els.deleteBtn.style.display = 'none';
-            els.passedEl.textContent = '0с';
-            els.leftEl.textContent = durStr(result.leftSec);
+            els.passedEl.textContent = zeroSec;
+            els.leftEl.textContent =
+                result.currentDate && result.startDate
+                    ? durStr(result.currentDate, result.startDate)
+                    : durStr(result.leftSec);
             this.setStatus(
                 els,
                 t('statusBefore'),
@@ -202,16 +213,29 @@ export class CountdownTimerStrategy implements TimerStrategy {
         }
 
         if (result.isDone) {
-            els.passedEl.textContent = result.totalSec ? durStr(result.totalSec) : '—';
-            els.leftEl.textContent = '0с';
+            els.passedEl.textContent =
+                result.startDate && result.targetDate
+                    ? durStr(result.startDate, result.targetDate)
+                    : result.totalSec !== null
+                      ? durStr(result.totalSec)
+                      : '—';
+            els.leftEl.textContent = zeroSec;
             if (els.deleteBtn) els.deleteBtn.style.display = 'inline-flex';
             this.setStatus(els, t('statusReached'), '#a6e3a1', '#1e3a2f');
             return;
         }
 
         if (els.deleteBtn) els.deleteBtn.style.display = 'none';
-        els.passedEl.textContent = result.passedSec !== null ? durStr(result.passedSec) : '—';
-        els.leftEl.textContent = durStr(result.leftSec);
+        els.passedEl.textContent =
+            result.startDate && result.currentDate
+                ? durStr(result.startDate, result.currentDate)
+                : result.passedSec !== null
+                  ? durStr(result.passedSec)
+                  : '—';
+        els.leftEl.textContent =
+            result.currentDate && result.targetDate
+                ? durStr(result.currentDate, result.targetDate)
+                : durStr(result.leftSec);
         this.setStatus(els, t('statusCountdown'), '#89b4fa', '#1e2a3a');
     }
 
